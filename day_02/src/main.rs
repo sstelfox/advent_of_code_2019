@@ -41,8 +41,15 @@ impl IntcodeComputer {
         c_op.is_err() || c_op == Ok(Operation::Halt)
     }
 
-    /// Convert the internal memory representation into the format used by the
-    /// Advent examples.
+    /// Convert the internal memory representation into the format used by the Advent examples.
+    ///
+    /// The challenge doesn't specify the value of uninitialized memory or have a representation of
+    /// it, thus intermediate uninitialized values are undefined behavior for this output. This
+    /// implementation choose to preserve ordering in the event of this undefined behavior but does
+    /// not preserve memory addresses (uninitialized memory is ignored for this output).
+    ///
+    /// Thus if the memory state was `[Some(1), Some(2), None, Some(3)]` the output would be
+    /// reflected as `1,2,3` where the last value has moved from the fourth index to the third.
     pub fn memory_str(&self) -> String {
         self.memory.iter().filter_map(|m| m.as_ref()).map(|m| m.to_string()).collect::<Vec<_>>().join(",")
     }
