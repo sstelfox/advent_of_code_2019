@@ -4,16 +4,53 @@ use std::str::FromStr;
 
 const MEMORY_SIZE: usize = 100;
 
-struct IntcodeComputer {
+pub struct IntcodeComputer {
     pos: usize,
     memory: [Option<usize>; MEMORY_SIZE],
 }
 
 impl IntcodeComputer {
+    pub fn advance(&mut self) -> Result<(), String> {
+        let new_pos = self.pos + 4;
+        if new_pos > MEMORY_SIZE {
+            return Err("Unable to advance past the end of available memory.".to_string());
+        }
+
+        self.pos = new_pos;
+        Ok(())
+    }
+
+    pub fn current_op(&self) -> Result<Operation, OperationError> {
+        match self.memory[self.pos] {
+            Some(op) => match op {
+                1 => Ok(Operation::Add),
+                2 => Ok(Operation::Mul),
+                99 => Ok(Operation::Halt),
+                _ => Err(OperationError::UnknownOperation(op)),
+            },
+            None => Err(OperationError::UninitializedOperation),
+        }
+    }
+
+    pub fn current_pos(&self) -> usize {
+        self.pos
+    }
+
+    pub fn is_halted(&self) -> bool {
+        let c_op = self.current_op();
+        c_op.is_err() || c_op == Ok(Operation::Halt)
+    }
+
     /// Convert the internal memory representation into the format used by the
     /// Advent examples.
     pub fn memory_str(&self) -> String {
         self.memory.iter().filter_map(|m| m.as_ref()).map(|m| m.to_string()).collect::<Vec<_>>().join(",")
+    }
+
+    /// Steps the state of the computer performing one operation. If the 
+    pub fn step(&mut self) -> Result<(), String> {
+
+        Ok(())
     }
 }
 
@@ -38,6 +75,21 @@ impl FromStr for IntcodeComputer {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub enum Operation {
+    Add,
+    Mul,
+    Halt,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum OperationError {
+    MissingArgument,
+    MissingDestination,
+    UninitializedOperation,
+    UnknownOperation(usize),
+}
+
 fn main() {
     let mut in_dat_fh = File::open("./data/input_02.txt").unwrap();
     let mut in_dat = String::new();
@@ -49,6 +101,83 @@ fn main() {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_advancing() {
+        // Advancing doesn't care about the state of the memory we moved into, so the entire
+        // program can be empty during this test.
+        let mut ic = IntcodeComputer {
+            pos: 0,
+            memory: [None; MEMORY_SIZE],
+        };
+
+        assert_eq!(ic.advance(), Ok(()));
+        assert_eq!(ic.current_pos(), 4);
+        assert_eq!(ic.advance(), Ok(()));
+        assert_eq!(ic.current_pos(), 8);
+
+        // Also ensure we can't advance past the end of our memory without triggering an error
+        let mut ic = IntcodeComputer {
+            pos: MEMORY_SIZE - 1,
+            memory: [None; MEMORY_SIZE],
+        };
+
+        assert!(ic.advance().is_err());
+    }
+
+    #[test]
+    fn test_halt_checking() {
+        let mut memory: [Option<usize>; MEMORY_SIZE] = [None; MEMORY_SIZE];
+
+        // Setup our memory so we can advance through a couple of operation states
+        memory[0] = Some(1);
+        memory[4] = Some(99);
+        memory[8] = None;
+        memory[12] = Some(45);
+        memory[16] = Some(1);
+
+        let mut ic = IntcodeComputer { pos: 0, memory: memory };
+        assert!(!ic.is_halted());
+
+        ic.advance().unwrap();
+        assert!(ic.is_halted());
+
+        ic.advance().unwrap();
+        assert!(ic.is_halted());
+
+        ic.advance().unwrap();
+        assert!(ic.is_halted());
+
+        ic.advance().unwrap();
+        assert!(!ic.is_halted());
+    }
+
+    #[test]
+    fn test_op_parsing() {
+        let mut memory: [Option<usize>; MEMORY_SIZE] = [None; MEMORY_SIZE];
+
+        // Setup our memory so we can advance through a couple of operation states
+        memory[0] = Some(1);
+        memory[4] = Some(2);
+        memory[8] = Some(99);
+        memory[12] = None;
+        memory[16] = Some(7500);
+
+        let mut ic = IntcodeComputer { pos: 0, memory: memory };
+        assert_eq!(ic.current_op(), Ok(Operation::Add));
+
+        ic.advance().unwrap();
+        assert_eq!(ic.current_op(), Ok(Operation::Mul));
+
+        ic.advance().unwrap();
+        assert_eq!(ic.current_op(), Ok(Operation::Halt));
+
+        ic.advance().unwrap();
+        assert_eq!(ic.current_op(), Err(OperationError::UninitializedOperation));
+
+        ic.advance().unwrap();
+        assert_eq!(ic.current_op(), Err(OperationError::UnknownOperation(7500)));
+    }
 
     #[test]
     fn test_prog_parsing() {
@@ -70,5 +199,6 @@ mod test {
     fn test_sample_prog1() {
         let sample_prog = "1,9,10,3,2,3,11,0,99,30,40,50";
         let _ic = IntcodeComputer::from_str(sample_prog).unwrap();
+        // TODO: test stepping through the program
     }
 }
