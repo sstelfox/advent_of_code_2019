@@ -21,7 +21,7 @@ impl FromStr for IntcodeComputer {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let raw_mem: Vec<Option<usize>> = s.split(',').map(|s| Some(s.parse::<usize>().unwrap()) ).collect();
+        let raw_mem: Vec<Option<usize>> = s.trim().split(',').map(|s| Some(s.parse::<usize>().unwrap()) ).collect();
         if raw_mem.len() > MEMORY_SIZE {
             return Err(format!("parsed memory was larger than the computer can support: {} vs {}", raw_mem.len(), MEMORY_SIZE));
         }
@@ -55,7 +55,15 @@ mod test {
         let sample_prog = "1,2,3,4,5";
         let ic = IntcodeComputer::from_str(sample_prog).unwrap();
 
-        assert_eq!(sample_prog, ic.memory_str());
+        assert_eq!(ic.memory_str(), sample_prog);
+    }
+
+    #[test]
+    fn test_trailing_whitespace() {
+        let sample_prog = "1,2,3,100,0\n";
+        let ic = IntcodeComputer::from_str(sample_prog).unwrap();
+
+        assert_eq!(ic.memory_str(), "1,2,3,100,0");
     }
 
     #[test]
