@@ -4,31 +4,41 @@ use std::str::FromStr;
 
 const MEMORY_SIZE: usize = 100;
 
+#[derive(Debug, PartialEq)]
+pub enum Fault {
+    InvalidDestination(usize, usize),
+    MemoryExceeded,
+    MissingArgument(usize, usize),
+    ProgramTooBig(usize),
+    UninitializedOperation(usize),
+    UnknownOperation(usize, usize),
+}
+
 pub struct IntcodeComputer {
     pos: usize,
     memory: [Option<usize>; MEMORY_SIZE],
 }
 
 impl IntcodeComputer {
-    pub fn advance(&mut self) -> Result<(), String> {
+    pub fn advance(&mut self) -> Result<(), Fault> {
         let new_pos = self.pos + 4;
         if new_pos > MEMORY_SIZE {
-            return Err("Unable to advance past the end of available memory.".to_string());
+            return Err(Fault::MemoryExceeded);
         }
 
         self.pos = new_pos;
         Ok(())
     }
 
-    pub fn current_op(&self) -> Result<Operation, OperationError> {
+    pub fn current_op(&self) -> Result<Operation, Fault> {
         match self.memory[self.pos] {
             Some(op) => match op {
                 1 => Ok(Operation::Add),
                 2 => Ok(Operation::Mul),
                 99 => Ok(Operation::Halt),
-                _ => Err(OperationError::UnknownOperation(op)),
+                _ => Err(Fault::UnknownOperation(self.pos, op)),
             },
-            None => Err(OperationError::UninitializedOperation),
+            None => Err(Fault::UninitializedOperation(self.pos)),
         }
     }
 
@@ -55,19 +65,19 @@ impl IntcodeComputer {
     }
 
     /// Steps the state of the computer performing one operation. If the 
-    pub fn step(&mut self) -> Result<(), String> {
+    pub fn step(&mut self) -> Result<(), Fault> {
 
         Ok(())
     }
 }
 
 impl FromStr for IntcodeComputer {
-    type Err = String;
+    type Err = Fault;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let raw_mem: Vec<Option<usize>> = s.trim().split(',').map(|s| Some(s.parse::<usize>().unwrap()) ).collect();
         if raw_mem.len() > MEMORY_SIZE {
-            return Err(format!("parsed memory was larger than the computer can support: {} vs {}", raw_mem.len(), MEMORY_SIZE));
+            return Err(Fault::ProgramTooBig(raw_mem.len()));
         }
 
         let mut memory: [Option<usize>; MEMORY_SIZE] = [None; MEMORY_SIZE];
@@ -87,14 +97,6 @@ pub enum Operation {
     Add,
     Mul,
     Halt,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum OperationError {
-    MissingArgument,
-    MissingDestination,
-    UninitializedOperation,
-    UnknownOperation(usize),
 }
 
 fn main() {
@@ -180,10 +182,10 @@ mod test {
         assert_eq!(ic.current_op(), Ok(Operation::Halt));
 
         ic.advance().unwrap();
-        assert_eq!(ic.current_op(), Err(OperationError::UninitializedOperation));
+        assert_eq!(ic.current_op(), Err(Fault::UninitializedOperation(12)));
 
         ic.advance().unwrap();
-        assert_eq!(ic.current_op(), Err(OperationError::UnknownOperation(7500)));
+        assert_eq!(ic.current_op(), Err(Fault::UnknownOperation(16, 7500)));
     }
 
     #[test]
