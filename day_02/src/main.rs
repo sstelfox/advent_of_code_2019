@@ -30,6 +30,17 @@ impl IntcodeComputer {
         Ok(())
     }
 
+    pub fn argument(&self, position: usize) -> Result<usize, Fault> {
+        if position > MEMORY_SIZE {
+            return Err(Fault::MemoryExceeded);
+        }
+
+        match self.memory[position] {
+            Some(val) => Ok(val),
+            None => Err(Fault::MissingArgument(self.pos, position)),
+        }
+    }
+
     pub fn current_op(&self) -> Result<Operation, Fault> {
         match self.memory[self.pos] {
             Some(op) => match op {
@@ -132,6 +143,18 @@ mod test {
         };
 
         assert!(ic.advance().is_err());
+    }
+
+    #[test]
+    fn test_argument_retrieval() {
+        let mut memory: [Option<usize>; MEMORY_SIZE] = [None; MEMORY_SIZE];
+        memory[7] = Some(45);
+
+        let ic = IntcodeComputer { pos: 0, memory: memory };
+
+        assert_eq!(ic.argument(7), Ok(45));
+        assert_eq!(ic.argument(1), Err(Fault::MissingArgument(0, 1)));
+        assert_eq!(ic.argument(MEMORY_SIZE + 1), Err(Fault::MemoryExceeded));
     }
 
     #[test]
