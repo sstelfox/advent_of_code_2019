@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::Read;
 use std::str::FromStr;
 
-const MEMORY_SIZE: usize = 100;
+const MEMORY_SIZE: usize = 200;
 
 #[derive(Debug, PartialEq)]
 pub enum Fault {
