@@ -113,3 +113,113 @@ fn test_parsing_directions() {
         assert_eq!(result, expected);
     }
 }
+
+#[test]
+fn test_location_orientation() {
+    let cases: Vec<(Location, Location, Location, Orientation)> = vec![
+        (
+            Location::new(0, 0),
+            Location::new(0, 5),
+            Location::new(0, 10),
+            Orientation::Colinear,
+        ),
+        (
+            Location::new(0, 0),
+            Location::new(0, 5),
+            Location::new(5, 10),
+            Orientation::Clockwise,
+        ),
+        (
+            Location::new(0, 0),
+            Location::new(0, 5),
+            Location::new(-5, 10),
+            Orientation::CounterClockwise,
+        ),
+        (
+            Location::new(0, 0),
+            Location::new(4, 4),
+            Location::new(1, 1),
+            Orientation::Colinear,
+        ),
+        (
+            Location::new(0, 0),
+            Location::new(4, 4),
+            Location::new(1, 2),
+            Orientation::CounterClockwise,
+        ),
+    ];
+
+    for (p1, p2, p3, orientation) in cases {
+        assert_eq!(
+            Orientation::from_three_locations(&p1, &p2, &p3),
+            orientation
+        );
+    }
+}
+
+#[test]
+fn test_location_on_segments() {
+    let cases: Vec<(Location, Location, Location, bool)> = vec![
+        (
+            Location::new(0, 0),
+            Location::new(0, 10),
+            Location::new(0, 5),
+            true,
+        ),
+        (
+            Location::new(1, 1),
+            Location::new(5, 5),
+            Location::new(3, 3),
+            true,
+        ),
+        (
+            Location::new(1, 1),
+            Location::new(5, 5),
+            Location::new(3, 0),
+            false,
+        ),
+        (
+            Location::new(1, 1),
+            Location::new(1, 1),
+            Location::new(1, 1),
+            true,
+        ),
+    ];
+
+    for (p1, p2, p3, expectation) in cases {
+        assert_eq!(LineSegment(p1, p2).is_present(&p3), expectation);
+    }
+}
+
+#[test]
+fn test_intersection_checks() {
+    let cases: Vec<(Location, Location, Location, Location, bool)> = vec![
+        // Normal intersection
+        (Location::new(1, 1), Location::new(5, 5), Location::new(5, 1), Location::new(1, 5), true),
+
+        // Overlapping endpoint
+        (Location::new(1, 1), Location::new(5, 5), Location::new(3, 3), Location::new(1, 6), true),
+
+        // Non-intersecting segments (the lines would intersect)
+        (Location::new(-5, 3), Location::new(5, 3), Location::new(0, -5), Location::new(0, 0), false),
+
+        // Non-intersecting segments (the lines would intersect at an endpoint)
+        (Location::new(-5, 3), Location::new(5, 3), Location::new(-5, -5), Location::new(-5, 0), false),
+
+        // Parallel but non-intersecting
+        (Location::new(1, 1), Location::new(5, 5), Location::new(1, 2), Location::new(5, 6), false),
+
+        // Colinear and intersecting
+        (Location::new(-5, 0), Location::new(-1, 0), Location::new(-2, 0), Location::new(3, 0), true),
+
+        // Colinear and non-intersecting
+        (Location::new(-7, 2), Location::new(-4, 2), Location::new(0, 2), Location::new(4, 2), false),
+    ];
+
+    for (p1, p2, p3, p4, expectation) in cases {
+        let line_seg1 = LineSegment(p1, p2);
+        let line_seg2 = LineSegment(p3, p4);
+
+        assert_eq!(line_seg1.intersects(&line_seg2), expectation);
+    }
+}
