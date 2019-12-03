@@ -99,7 +99,12 @@ impl IntCodeComputer {
     /// Thus if the memory state was `[Some(1), Some(2), None, Some(3)]` the output would be
     /// reflected as `1,2,3` where the last value has moved from the fourth index to the third.
     pub fn memory_str(&self) -> String {
-        self.memory.iter().filter_map(|m| m.as_ref()).map(|m| m.to_string()).collect::<Vec<_>>().join(",")
+        self.memory
+            .iter()
+            .filter_map(|m| m.as_ref())
+            .map(|m| m.to_string())
+            .collect::<Vec<_>>()
+            .join(",")
     }
 
     /// Resets the computer to the initial state it was created with and resets the program counter
@@ -155,7 +160,7 @@ impl IntCodeComputer {
                 let right_val = self.retrieve(right_addr)?;
 
                 self.store(dest_addr, left_val + right_val)?;
-            },
+            }
             Operation::Mul => {
                 let left_addr = self.retrieve(self.pc + 1)?;
                 let right_addr = self.retrieve(self.pc + 2)?;
@@ -165,7 +170,7 @@ impl IntCodeComputer {
                 let right_val = self.retrieve(right_addr)?;
 
                 self.store(dest_addr, left_val * right_val)?;
-            },
+            }
             _ => (),
         }
 
@@ -208,7 +213,11 @@ impl FromStr for IntCodeComputer {
     /// to the end of day 2 and returns an instance of the emulator that can be run. This expects
     /// only positive integer numbers on a single line separated by spaces.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let raw_mem: Vec<Option<usize>> = s.trim().split(',').map(|s| Some(s.parse::<usize>().unwrap()) ).collect();
+        let raw_mem: Vec<Option<usize>> = s
+            .trim()
+            .split(',')
+            .map(|s| Some(s.parse::<usize>().unwrap()))
+            .collect();
         if raw_mem.len() > MEMORY_SIZE {
             return Err(Fault::ProgramTooBig(raw_mem.len()));
         }
