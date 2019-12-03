@@ -2,7 +2,9 @@ use std::fs::File;
 use std::io::Read;
 use std::str::FromStr;
 
-const MEMORY_SIZE: usize = 200;
+// The amount of RAM the IntcodeComputer has. I could change the implementation to allow for
+// arbitrary sized inputs by using a Vec<_> instead, but this feels more appropriate for the task.
+pub const MEMORY_SIZE: usize = 200;
 
 #[derive(Debug, PartialEq)]
 pub enum Fault {
@@ -13,13 +15,22 @@ pub enum Fault {
     UnknownOperation(usize, usize),
 }
 
+/// An IntcodeComputer emulator as defined in the day 2 segment of the 2019 Advent of Code.
 pub struct IntcodeComputer {
     pc: usize,
     memory: [Option<usize>; MEMORY_SIZE],
+    //original_memory: [Option<usize>; MEMORY_SIZE],
 }
 
 impl IntcodeComputer {
+    /// Advances the current program counter past the current instruction. This is supposed to be
+    /// dependent on the operation but currently only advances it a fixed 4 as was specified in the
+    /// original problem definition.
     pub fn advance(&mut self) -> Result<(), Fault> {
+        // TODO: Part 2 got more specific about what should happen here. The program counter (they
+        // refer to it as the instruction pointer) should advance by the number of values in the
+        // instruction. For Add & Mul this is 4 (1 op code, 2 parameters, 1 destination), for Halt
+        // this should be 1 (just 1 op code).
         let new_pc = self.pc + 4;
         if new_pc > MEMORY_SIZE {
             return Err(Fault::MemoryExceeded);
@@ -29,6 +40,8 @@ impl IntcodeComputer {
         Ok(())
     }
 
+    /// Decodes the operation pointed to by the program counter. Will fault if the operation is
+    /// unknown or if the program as entered uninitialized memory.
     pub fn current_op(&self) -> Result<Operation, Fault> {
         match self.memory[self.pc] {
             Some(op) => match op {
@@ -41,6 +54,18 @@ impl IntcodeComputer {
         }
     }
 
+    /// Initialize a new IntcodeComputer emulator with the provided memory. This must be a slice
+    /// equal in size to `MEMORY_SIZE`.
+    pub fn new(memory: [Option<usize>; MEMORY_SIZE]) -> Self {
+        IntcodeComputer {
+            pc: 0,
+            memory: memory,
+        }
+    }
+
+    /// The advent challenge refers to this as the instruction pointer the computer is currently
+    /// at, but I prefer the more traditional program counter or `pc`. This retrieves the location
+    /// in memory the program is currently executing or about to execute.
     pub fn program_counter(&self) -> usize {
         self.pc
     }
@@ -123,6 +148,9 @@ impl IntcodeComputer {
         // Halt is a valid operation and we will have successfully processed it at this point so
         // according to the above we should advance the program counter even if it is a halt
         // instruction...
+        //
+        // Update: this is correct, but advance needs to be updated to be smarted about how to
+        // advance based on different instructions.
         self.advance()?;
 
         Ok(())
@@ -138,6 +166,15 @@ impl IntcodeComputer {
     }
 }
 
+impl Default for IntcodeComputer {
+    fn default() -> Self {
+        IntcodeComputer {
+            pc: 0,
+            memory: [None; MEMORY_SIZE],
+        }
+    }
+}
+
 impl FromStr for IntcodeComputer {
     type Err = Fault;
 
@@ -150,12 +187,7 @@ impl FromStr for IntcodeComputer {
         let mut memory: [Option<usize>; MEMORY_SIZE] = [None; MEMORY_SIZE];
         memory[..raw_mem.len()].copy_from_slice(&raw_mem);
 
-        let ic = IntcodeComputer {
-            pc: 0,
-            memory: memory,
-        };
-
-        Ok(ic)
+        Ok(IntcodeComputer::new(memory))
     }
 }
 
@@ -190,95 +222,98 @@ fn main() {
 mod test {
     use super::*;
 
-    #[test]
-    fn test_advancing() {
-        // Advancing doesn't care about the state of the memory we moved into, so the entire
-        // program can be empty during this test.
-        let mut ic = IntcodeComputer {
-            pc: 0,
-            memory: [None; MEMORY_SIZE],
-        };
+    type FaultResult = Result<(), Fault>;
 
-        assert_eq!(ic.advance(), Ok(()));
+    #[test]
+    fn test_advancing() -> FaultResult {
+        let mut ic = IntcodeComputer::default();
+
+        ic.advance()?;
         assert_eq!(ic.program_counter(), 4);
-        assert_eq!(ic.advance(), Ok(()));
+
+        ic.advance()?;
         assert_eq!(ic.program_counter(), 8);
 
-        // Also ensure we can't advance past the end of our memory without triggering an error
+        // Ensure we can't advance past the end of our memory without triggering an error
         let mut ic = IntcodeComputer {
             pc: MEMORY_SIZE - 1,
             memory: [None; MEMORY_SIZE],
         };
+        assert_eq!(ic.advance(), Err(Fault::MemoryExceeded));
 
-        assert!(ic.advance().is_err());
+        Ok(())
     }
 
     #[test]
-    fn test_memory_retrieval() {
-        let mut memory: [Option<usize>; MEMORY_SIZE] = [None; MEMORY_SIZE];
-        memory[7] = Some(45);
+    fn test_memory_retrieval() -> FaultResult {
+        let mut ic = IntcodeComputer::default();
 
-        let ic = IntcodeComputer { pc: 0, memory: memory };
+        ic.store(7, 45)?;
+        assert_eq!(ic.retrieve(7)?, 45);
 
-        assert_eq!(ic.retrieve(7), Ok(45));
         assert_eq!(ic.retrieve(1), Err(Fault::MissingMemory(0, 1)));
         assert_eq!(ic.retrieve(MEMORY_SIZE + 1), Err(Fault::MemoryExceeded));
+
+        Ok(())
     }
 
     #[test]
-    fn test_memory_storage() {
-        let mut memory: [Option<usize>; MEMORY_SIZE] = [None; MEMORY_SIZE];
-        let mut ic = IntcodeComputer { pc: 0, memory: memory };
+    fn test_memory_storage() -> FaultResult {
+        let mut ic = IntcodeComputer::default();
 
-        assert_eq!(ic.store(0, 100), Ok(()));
-        assert_eq!(ic.retrieve(0), Ok(100));
+        ic.store(0, 100)?;
+        assert_eq!(ic.retrieve(0)?, 100);
+
         assert_eq!(ic.store(MEMORY_SIZE + 1, 6000), Err(Fault::MemoryExceeded));
+
+        Ok(())
     }
 
     #[test]
-    fn test_halt_checking() {
-        let mut memory: [Option<usize>; MEMORY_SIZE] = [None; MEMORY_SIZE];
+    fn test_halt_checking() -> FaultResult {
+        let mut ic = IntcodeComputer::default();
 
         // Setup our memory so we can advance through a couple of operation states
-        memory[0] = Some(1);
-        memory[4] = Some(99);
-        memory[16] = Some(1);
+        ic.store(0, 1)?;
+        ic.store(4, 99)?;
+        ic.store(8, 1)?;
 
-        let mut ic = IntcodeComputer { pc: 0, memory: memory };
         assert!(!ic.is_halted());
 
-        ic.advance().unwrap();
+        ic.advance()?;
         assert!(ic.is_halted());
 
-        ic.advance().unwrap();
+        ic.advance()?;
         assert!(!ic.is_halted());
+
+        Ok(())
     }
 
     #[test]
-    fn test_op_parsing() {
-        let mut memory: [Option<usize>; MEMORY_SIZE] = [None; MEMORY_SIZE];
+    fn test_op_parsing() -> FaultResult {
+        let mut ic = IntcodeComputer::default();
 
         // Setup our memory so we can advance through a couple of operation states
-        memory[0] = Some(1);
-        memory[4] = Some(2);
-        memory[8] = Some(99);
-        memory[12] = None;
-        memory[16] = Some(7500);
+        ic.store(0, 1)?;
+        ic.store(4, 2)?;
+        ic.store(8, 99)?;
+        ic.store(16, 7500)?;
 
-        let mut ic = IntcodeComputer { pc: 0, memory: memory };
-        assert_eq!(ic.current_op(), Ok(Operation::Add));
+        assert_eq!(ic.current_op()?, Operation::Add);
 
-        ic.advance().unwrap();
-        assert_eq!(ic.current_op(), Ok(Operation::Mul));
+        ic.advance()?;
+        assert_eq!(ic.current_op()?, Operation::Mul);
 
-        ic.advance().unwrap();
-        assert_eq!(ic.current_op(), Ok(Operation::Halt));
+        ic.advance()?;
+        assert_eq!(ic.current_op()?, Operation::Halt);
 
-        ic.advance().unwrap();
+        ic.advance()?;
         assert_eq!(ic.current_op(), Err(Fault::UninitializedOperation(12)));
 
-        ic.advance().unwrap();
+        ic.advance()?;
         assert_eq!(ic.current_op(), Err(Fault::UnknownOperation(16, 7500)));
+
+        Ok(())
     }
 
     #[test]
@@ -298,75 +333,85 @@ mod test {
     }
 
     #[test]
-    fn test_addition_step() {
+    fn test_addition_step() -> FaultResult {
         let sample_prog = "1,4,5,6,10,20";
 
-        let mut ic = IntcodeComputer::from_str(sample_prog).unwrap();
+        let mut ic = IntcodeComputer::from_str(sample_prog)?;
         assert_eq!(ic.memory_str(), sample_prog);
 
-        assert_eq!(ic.current_op(), Ok(Operation::Add));
-        assert_eq!(ic.step(), Ok(()));
+        assert_eq!(ic.current_op()?, Operation::Add);
+        ic.step()?;
         assert_eq!(ic.program_counter(), 4);
         assert_eq!(ic.memory_str(), "1,4,5,6,10,20,30");
+
+        Ok(())
     }
 
     #[test]
-    fn test_multiplication_step() {
+    fn test_multiplication_step() -> FaultResult {
         let sample_prog = "2,4,5,6,10,20";
 
-        let mut ic = IntcodeComputer::from_str(sample_prog).unwrap();
+        let mut ic = IntcodeComputer::from_str(sample_prog)?;
         assert_eq!(ic.memory_str(), sample_prog);
 
-        assert_eq!(ic.current_op(), Ok(Operation::Mul));
-        assert_eq!(ic.step(), Ok(()));
+        assert_eq!(ic.current_op()?, Operation::Mul);
+        ic.step()?;
         assert_eq!(ic.program_counter(), 4);
         assert_eq!(ic.memory_str(), "2,4,5,6,10,20,200");
+
+        Ok(())
     }
 
     #[test]
-    fn test_halt_step() {
+    fn test_halt_step() -> FaultResult {
         let sample_prog = "99";
 
-        let mut ic = IntcodeComputer::from_str(sample_prog).unwrap();
+        let mut ic = IntcodeComputer::from_str(sample_prog)?;
         assert_eq!(ic.memory_str(), sample_prog);
 
-        assert_eq!(ic.current_op(), Ok(Operation::Halt));
-        assert_eq!(ic.step(), Ok(()));
+        assert_eq!(ic.current_op()?, Operation::Halt);
+        ic.step()?;
         assert_eq!(ic.memory_str(), "99");
         assert_eq!(ic.program_counter(), 4);
+
+        Ok(())
     }
 
     // This is the test program walked through by the advent challenge
     #[test]
-    fn test_stepping_sample_prog() {
+    fn test_stepping_sample_prog() -> FaultResult {
         let sample_prog = "1,9,10,3,2,3,11,0,99,30,40,50";
-        let mut ic = IntcodeComputer::from_str(sample_prog).unwrap();
+        let mut ic = IntcodeComputer::from_str(sample_prog)?;
 
-        assert_eq!(ic.step(), Ok(()));
+        ic.step()?;
         assert_eq!(ic.memory_str(), "1,9,10,70,2,3,11,0,99,30,40,50");
         assert_eq!(ic.program_counter(), 4);
 
-        assert_eq!(ic.step(), Ok(()));
+        ic.step()?;
         assert_eq!(ic.memory_str(), "3500,9,10,70,2,3,11,0,99,30,40,50");
         assert_eq!(ic.program_counter(), 8);
 
         // This is the halt instruction and should also complete successfully, termination of
         // execution is tested via the run() function.
-        assert_eq!(ic.step(), Ok(()));
+        ic.step()?;
+
+        Ok(())
     }
 
     // Test the same program but rather than stepping just run it
     #[test]
-    fn test_running_sample_prog() {
+    fn test_running_sample_prog() -> FaultResult {
         let sample_prog = "1,9,10,3,2,3,11,0,99,30,40,50";
-        let mut ic = IntcodeComputer::from_str(sample_prog).unwrap();
+        let mut ic = IntcodeComputer::from_str(sample_prog)?;
 
-        assert_eq!(ic.run(), Ok(()));
+        ic.run()?;
         assert_eq!(ic.memory_str(), "3500,9,10,70,2,3,11,0,99,30,40,50");
+
+        Ok(())
     }
 
     #[test]
-    fn test_additional_progs() {
+    fn test_additional_progs() -> FaultResult {
         let programs: [(&'static str, &'static str); 4] = [
             ("1,0,0,0,99", "2,0,0,0,99"),
             ("2,3,0,3,99", "2,3,0,6,99"),
@@ -375,10 +420,11 @@ mod test {
         ];
 
         for (prog, result) in programs.iter() {
-            let mut ic = IntcodeComputer::from_str(prog).unwrap();
-
-            assert_eq!(ic.run(), Ok(()));
+            let mut ic = IntcodeComputer::from_str(prog)?;
+            ic.run()?;
             assert_eq!(ic.memory_str(), result.to_string());
         }
+
+        Ok(())
     }
 }
