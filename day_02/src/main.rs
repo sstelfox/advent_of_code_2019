@@ -171,7 +171,18 @@ fn main() {
     let mut in_dat = String::new();
 
     in_dat_fh.read_to_string(&mut in_dat).unwrap();
-    let _ic = IntcodeComputer::from_str(&in_dat);
+    let mut ic = IntcodeComputer::from_str(&in_dat).unwrap();
+
+    // The instructions indicate to make these replacments before running
+    ic.store(1, 12).unwrap();
+    ic.store(2, 2).unwrap();
+
+    match ic.run() {
+        Ok(_) => println!("Program executed successfully."),
+        Err(err) => println!("Program crashed with error: {:?}", err),
+    }
+
+    println!("Final state was: {}", ic.memory_str());
 }
 
 #[cfg(test)]
