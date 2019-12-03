@@ -183,6 +183,7 @@ fn main() {
     }
 
     println!("Final state was: {}", ic.memory_str());
+    println!("Answer to step 1 is: {}", ic.retrieve(0).unwrap());
 }
 
 #[cfg(test)]
