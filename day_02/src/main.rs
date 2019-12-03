@@ -6,7 +6,6 @@ const MEMORY_SIZE: usize = 100;
 
 #[derive(Debug, PartialEq)]
 pub enum Fault {
-    InvalidDestination(usize, usize),
     MemoryExceeded,
     MissingMemory(usize, usize),
     ProgramTooBig(usize),
@@ -95,32 +94,22 @@ impl IntcodeComputer {
             Operation::Add => {
                 let left_addr = self.retrieve(self.pos + 1)?;
                 let right_addr = self.retrieve(self.pos + 2)?;
+                let dest_addr = self.retrieve(self.pos + 3)?;
 
                 let left_val = self.retrieve(left_addr)?;
                 let right_val = self.retrieve(right_addr)?;
 
-                let dest_addr = self.pos + 3;
-                if dest_addr > MEMORY_SIZE {
-                    return Err(Fault::InvalidDestination(self.pos, dest_addr));
-                }
-
-                let destination = self.retrieve(dest_addr)?;
-                self.memory[destination] = Some(left_val + right_val);
+                self.store(dest_addr, left_val + right_val)?;
             },
             Operation::Mul => {
                 let left_addr = self.retrieve(self.pos + 1)?;
                 let right_addr = self.retrieve(self.pos + 2)?;
+                let dest_addr = self.retrieve(self.pos + 3)?;
 
                 let left_val = self.retrieve(left_addr)?;
                 let right_val = self.retrieve(right_addr)?;
 
-                let dest_addr = self.pos + 3;
-                if dest_addr > MEMORY_SIZE {
-                    return Err(Fault::InvalidDestination(self.pos, dest_addr));
-                }
-
-                let destination = self.retrieve(dest_addr)?;
-                self.memory[destination] = Some(left_val * right_val);
+                self.store(dest_addr, left_val * right_val)?;
             },
             _ => (),
         }
@@ -136,6 +125,15 @@ impl IntcodeComputer {
         // instruction...
         self.advance()?;
 
+        Ok(())
+    }
+
+    pub fn store(&mut self, position: usize, value: usize) -> Result<(), Fault> {
+        if position > MEMORY_SIZE {
+            return Err(Fault::MemoryExceeded);
+        }
+
+        self.memory[position] = Some(value);
         Ok(())
     }
 }
@@ -213,6 +211,16 @@ mod test {
         assert_eq!(ic.retrieve(7), Ok(45));
         assert_eq!(ic.retrieve(1), Err(Fault::MissingMemory(0, 1)));
         assert_eq!(ic.retrieve(MEMORY_SIZE + 1), Err(Fault::MemoryExceeded));
+    }
+
+    #[test]
+    fn test_memory_storage() {
+        let mut memory: [Option<usize>; MEMORY_SIZE] = [None; MEMORY_SIZE];
+        let mut ic = IntcodeComputer { pos: 0, memory: memory };
+
+        assert_eq!(ic.store(0, 100), Ok(()));
+        assert_eq!(ic.retrieve(0), Ok(100));
+        assert_eq!(ic.store(MEMORY_SIZE + 1, 6000), Err(Fault::MemoryExceeded));
     }
 
     #[test]
