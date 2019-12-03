@@ -246,6 +246,9 @@ fn main() {
     //    integer point an intersection? Only the end? None of them? I'm guessing each point for
     //    now, but I'd also guess this probably won't come up.
     //
+    //    The only portion I have left is calculating the actual intersection between line segments
+    //    and iterating through the possibility space.
+    //
     //    I expect the output of this step to be a series of locations where the two paths have
     //    intersected.
     // 2. For each intersection calculate the manhattan distance between the intersection and the
