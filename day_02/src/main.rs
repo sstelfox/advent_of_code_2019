@@ -19,7 +19,7 @@ pub enum Fault {
 pub struct IntcodeComputer {
     pc: usize,
     memory: [Option<usize>; MEMORY_SIZE],
-    //original_memory: [Option<usize>; MEMORY_SIZE],
+    original_memory: [Option<usize>; MEMORY_SIZE],
 }
 
 impl IntcodeComputer {
@@ -59,7 +59,8 @@ impl IntcodeComputer {
     pub fn new(memory: [Option<usize>; MEMORY_SIZE]) -> Self {
         IntcodeComputer {
             pc: 0,
-            memory: memory,
+            memory: memory.clone(),
+            original_memory: memory,
         }
     }
 
@@ -87,6 +88,12 @@ impl IntcodeComputer {
         self.memory.iter().filter_map(|m| m.as_ref()).map(|m| m.to_string()).collect::<Vec<_>>().join(",")
     }
 
+    /// Resets the computer to the initial state it was created with.
+    pub fn reset(&mut self) {
+        self.memory = self.original_memory.clone();
+        self.pc = 0;
+    }
+
     /// Safely returns the value stored at the provided address.
     pub fn retrieve(&self, address: usize) -> Result<usize, Fault> {
         if address > MEMORY_SIZE {
@@ -105,11 +112,11 @@ impl IntcodeComputer {
     /// it stands it can at most execute MEMORY_SIZE / 4 instructions before exiting.
     pub fn run(&mut self) -> Result<(), Fault> {
         loop {
+            self.step()?;
+
             if self.is_halted() {
                 return Ok(());
             }
-
-            self.step()?;
         }
     }
 
@@ -171,6 +178,7 @@ impl Default for IntcodeComputer {
         IntcodeComputer {
             pc: 0,
             memory: [None; MEMORY_SIZE],
+            original_memory: [None; MEMORY_SIZE],
         }
     }
 }
@@ -238,6 +246,7 @@ mod test {
         let mut ic = IntcodeComputer {
             pc: MEMORY_SIZE - 1,
             memory: [None; MEMORY_SIZE],
+            original_memory: [None; MEMORY_SIZE],
         };
         assert_eq!(ic.advance(), Err(Fault::MemoryExceeded));
 
@@ -424,6 +433,22 @@ mod test {
             ic.run()?;
             assert_eq!(ic.memory_str(), result.to_string());
         }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_system_reset() -> FaultResult {
+        let prog = "1,8,4,1,2,2,1,4,99";
+        let mut ic = IntcodeComputer::from_str(&prog)?;
+
+        ic.run()?;
+        assert_eq!(ic.memory_str(), "1,101,4,1,404,2,1,4,99");
+        assert_eq!(ic.program_counter(), 8);
+
+        ic.reset();
+        assert_eq!(ic.memory_str(), prog);
+        assert_eq!(ic.program_counter(), 0);
 
         Ok(())
     }
