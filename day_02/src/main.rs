@@ -47,8 +47,7 @@ impl IntcodeComputer {
     }
 
     pub fn is_halted(&self) -> bool {
-        let c_op = self.current_op();
-        c_op.is_err() || c_op == Ok(Operation::Halt)
+        self.current_op() == Ok(Operation::Halt)
     }
 
     /// Convert the internal memory representation into the format used by the Advent examples.
@@ -73,6 +72,20 @@ impl IntcodeComputer {
         match self.memory[position] {
             Some(val) => Ok(val),
             None => Err(Fault::MissingMemory(self.pos, position)),
+        }
+    }
+
+    /// Run the computer until it reaches a halt (success), or a fault (failure). If there was a
+    /// more complicated instruction set that involved jumps I would likely want to limit the
+    /// runtime of this to a certain number of instructions to ensure it always completed, but as
+    /// it stands it can at most execute MEMORY_SIZE / 4 instructions before exiting.
+    pub fn run(&mut self) -> Result<(), Fault> {
+        loop {
+            if self.is_halted() {
+                return Ok(());
+            }
+
+            self.step()?;
         }
     }
 
@@ -209,18 +222,10 @@ mod test {
         // Setup our memory so we can advance through a couple of operation states
         memory[0] = Some(1);
         memory[4] = Some(99);
-        memory[8] = None;
-        memory[12] = Some(45);
         memory[16] = Some(1);
 
         let mut ic = IntcodeComputer { pos: 0, memory: memory };
         assert!(!ic.is_halted());
-
-        ic.advance().unwrap();
-        assert!(ic.is_halted());
-
-        ic.advance().unwrap();
-        assert!(ic.is_halted());
 
         ic.advance().unwrap();
         assert!(ic.is_halted());
@@ -328,5 +333,15 @@ mod test {
         // This is the halt instruction and should also complete successfully, termination of
         // execution is tested via the run() function.
         assert_eq!(ic.step(), Ok(()));
+    }
+
+    // Test the same program but rather than stepping just run it
+    #[test]
+    fn test_running_sample_prog() {
+        let sample_prog = "1,9,10,3,2,3,11,0,99,30,40,50";
+        let mut ic = IntcodeComputer::from_str(sample_prog).unwrap();
+
+        assert_eq!(ic.run(), Ok(()));
+        assert_eq!(ic.memory_str(), "3500,9,10,70,2,3,11,0,99,30,40,50");
     }
 }
