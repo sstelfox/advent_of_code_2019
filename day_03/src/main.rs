@@ -127,10 +127,30 @@ fn main() {
     // TODO:
     //
     // 1. I need to search the two lines for intersections (can't rely on points, have to use
-    //    edges)
+    //    edges). Alright once again I've got two ways forward.
+    //
+    //    I can do the naive thing and build the ascii map as the example does and record all the
+    //    intersections only made between the two lines. I would have to use slightly different
+    //    indicators to be able to differentiate the two lines. This would unecessarily use a
+    //    pretty crazy amount of memory but I would get cool ASCII maps out of it.
+    //
+    //    The other option and the one that seems correct is to solve a system of equations over
+    //    each set of points looking for intersections and recording those. It initially seems
+    //    harder but I think it's going to be signficantly faster both to run and to code as there
+    //    won't be any of the odd edge cases as there would be with the ASCII maps.
+    //
+    //    There is one odd case that I don't know how this intersection check should behave, which
+    //    is the condition where the two line segments are overlapping and collinear. Is each
+    //    integer point an intersection? Only the end? None of them? I'm guessing each point for
+    //    now, but I'd also guess this probably won't come up.
+    //
+    //    I expect the output of this step to be a series of locations where the two paths have
+    //    intersected.
     // 2. For each intersection calculate the manhattan distance between the intersection and the
-    //    origin.
-    // 3. Return the distance (w + h) of the intersection with the lowest manhatten distance
+    //    origin. Pretty straight forward, already have this written just need the points from the
+    //    last step.
+    // 3. Return the distance (w + h) of the intersection with the lowest manhatten distance. Also
+    //    straight forward, this just needs to do a min() over the results from the last step.
 }
 
 #[cfg(test)]
