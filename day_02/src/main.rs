@@ -14,35 +14,35 @@ pub enum Fault {
 }
 
 pub struct IntcodeComputer {
-    pos: usize,
+    pc: usize,
     memory: [Option<usize>; MEMORY_SIZE],
 }
 
 impl IntcodeComputer {
     pub fn advance(&mut self) -> Result<(), Fault> {
-        let new_pos = self.pos + 4;
-        if new_pos > MEMORY_SIZE {
+        let new_pc = self.pc + 4;
+        if new_pc > MEMORY_SIZE {
             return Err(Fault::MemoryExceeded);
         }
 
-        self.pos = new_pos;
+        self.pc = new_pc;
         Ok(())
     }
 
     pub fn current_op(&self) -> Result<Operation, Fault> {
-        match self.memory[self.pos] {
+        match self.memory[self.pc] {
             Some(op) => match op {
                 1 => Ok(Operation::Add),
                 2 => Ok(Operation::Mul),
                 99 => Ok(Operation::Halt),
-                _ => Err(Fault::UnknownOperation(self.pos, op)),
+                _ => Err(Fault::UnknownOperation(self.pc, op)),
             },
-            None => Err(Fault::UninitializedOperation(self.pos)),
+            None => Err(Fault::UninitializedOperation(self.pc)),
         }
     }
 
-    pub fn current_pos(&self) -> usize {
-        self.pos
+    pub fn program_counter(&self) -> usize {
+        self.pc
     }
 
     pub fn is_halted(&self) -> bool {
@@ -63,14 +63,14 @@ impl IntcodeComputer {
     }
 
     /// Safely returns the value stored at the provided address.
-    pub fn retrieve(&self, position: usize) -> Result<usize, Fault> {
-        if position > MEMORY_SIZE {
+    pub fn retrieve(&self, address: usize) -> Result<usize, Fault> {
+        if address > MEMORY_SIZE {
             return Err(Fault::MemoryExceeded);
         }
 
-        match self.memory[position] {
+        match self.memory[address] {
             Some(val) => Ok(val),
-            None => Err(Fault::MissingMemory(self.pos, position)),
+            None => Err(Fault::MissingMemory(self.pc, address)),
         }
     }
 
@@ -92,9 +92,9 @@ impl IntcodeComputer {
     pub fn step(&mut self) -> Result<(), Fault> {
         match self.current_op()? {
             Operation::Add => {
-                let left_addr = self.retrieve(self.pos + 1)?;
-                let right_addr = self.retrieve(self.pos + 2)?;
-                let dest_addr = self.retrieve(self.pos + 3)?;
+                let left_addr = self.retrieve(self.pc + 1)?;
+                let right_addr = self.retrieve(self.pc + 2)?;
+                let dest_addr = self.retrieve(self.pc + 3)?;
 
                 let left_val = self.retrieve(left_addr)?;
                 let right_val = self.retrieve(right_addr)?;
@@ -102,9 +102,9 @@ impl IntcodeComputer {
                 self.store(dest_addr, left_val + right_val)?;
             },
             Operation::Mul => {
-                let left_addr = self.retrieve(self.pos + 1)?;
-                let right_addr = self.retrieve(self.pos + 2)?;
-                let dest_addr = self.retrieve(self.pos + 3)?;
+                let left_addr = self.retrieve(self.pc + 1)?;
+                let right_addr = self.retrieve(self.pc + 2)?;
+                let dest_addr = self.retrieve(self.pc + 3)?;
 
                 let left_val = self.retrieve(left_addr)?;
                 let right_val = self.retrieve(right_addr)?;
@@ -128,12 +128,12 @@ impl IntcodeComputer {
         Ok(())
     }
 
-    pub fn store(&mut self, position: usize, value: usize) -> Result<(), Fault> {
-        if position > MEMORY_SIZE {
+    pub fn store(&mut self, address: usize, value: usize) -> Result<(), Fault> {
+        if address > MEMORY_SIZE {
             return Err(Fault::MemoryExceeded);
         }
 
-        self.memory[position] = Some(value);
+        self.memory[address] = Some(value);
         Ok(())
     }
 }
@@ -151,7 +151,7 @@ impl FromStr for IntcodeComputer {
         memory[..raw_mem.len()].copy_from_slice(&raw_mem);
 
         let ic = IntcodeComputer {
-            pos: 0,
+            pc: 0,
             memory: memory,
         };
 
@@ -195,18 +195,18 @@ mod test {
         // Advancing doesn't care about the state of the memory we moved into, so the entire
         // program can be empty during this test.
         let mut ic = IntcodeComputer {
-            pos: 0,
+            pc: 0,
             memory: [None; MEMORY_SIZE],
         };
 
         assert_eq!(ic.advance(), Ok(()));
-        assert_eq!(ic.current_pos(), 4);
+        assert_eq!(ic.program_counter(), 4);
         assert_eq!(ic.advance(), Ok(()));
-        assert_eq!(ic.current_pos(), 8);
+        assert_eq!(ic.program_counter(), 8);
 
         // Also ensure we can't advance past the end of our memory without triggering an error
         let mut ic = IntcodeComputer {
-            pos: MEMORY_SIZE - 1,
+            pc: MEMORY_SIZE - 1,
             memory: [None; MEMORY_SIZE],
         };
 
@@ -218,7 +218,7 @@ mod test {
         let mut memory: [Option<usize>; MEMORY_SIZE] = [None; MEMORY_SIZE];
         memory[7] = Some(45);
 
-        let ic = IntcodeComputer { pos: 0, memory: memory };
+        let ic = IntcodeComputer { pc: 0, memory: memory };
 
         assert_eq!(ic.retrieve(7), Ok(45));
         assert_eq!(ic.retrieve(1), Err(Fault::MissingMemory(0, 1)));
@@ -228,7 +228,7 @@ mod test {
     #[test]
     fn test_memory_storage() {
         let mut memory: [Option<usize>; MEMORY_SIZE] = [None; MEMORY_SIZE];
-        let mut ic = IntcodeComputer { pos: 0, memory: memory };
+        let mut ic = IntcodeComputer { pc: 0, memory: memory };
 
         assert_eq!(ic.store(0, 100), Ok(()));
         assert_eq!(ic.retrieve(0), Ok(100));
@@ -244,7 +244,7 @@ mod test {
         memory[4] = Some(99);
         memory[16] = Some(1);
 
-        let mut ic = IntcodeComputer { pos: 0, memory: memory };
+        let mut ic = IntcodeComputer { pc: 0, memory: memory };
         assert!(!ic.is_halted());
 
         ic.advance().unwrap();
@@ -265,7 +265,7 @@ mod test {
         memory[12] = None;
         memory[16] = Some(7500);
 
-        let mut ic = IntcodeComputer { pos: 0, memory: memory };
+        let mut ic = IntcodeComputer { pc: 0, memory: memory };
         assert_eq!(ic.current_op(), Ok(Operation::Add));
 
         ic.advance().unwrap();
@@ -306,7 +306,7 @@ mod test {
 
         assert_eq!(ic.current_op(), Ok(Operation::Add));
         assert_eq!(ic.step(), Ok(()));
-        assert_eq!(ic.current_pos(), 4);
+        assert_eq!(ic.program_counter(), 4);
         assert_eq!(ic.memory_str(), "1,4,5,6,10,20,30");
     }
 
@@ -319,7 +319,7 @@ mod test {
 
         assert_eq!(ic.current_op(), Ok(Operation::Mul));
         assert_eq!(ic.step(), Ok(()));
-        assert_eq!(ic.current_pos(), 4);
+        assert_eq!(ic.program_counter(), 4);
         assert_eq!(ic.memory_str(), "2,4,5,6,10,20,200");
     }
 
@@ -333,7 +333,7 @@ mod test {
         assert_eq!(ic.current_op(), Ok(Operation::Halt));
         assert_eq!(ic.step(), Ok(()));
         assert_eq!(ic.memory_str(), "99");
-        assert_eq!(ic.current_pos(), 4);
+        assert_eq!(ic.program_counter(), 4);
     }
 
     // This is the test program walked through by the advent challenge
@@ -344,11 +344,11 @@ mod test {
 
         assert_eq!(ic.step(), Ok(()));
         assert_eq!(ic.memory_str(), "1,9,10,70,2,3,11,0,99,30,40,50");
-        assert_eq!(ic.current_pos(), 4);
+        assert_eq!(ic.program_counter(), 4);
 
         assert_eq!(ic.step(), Ok(()));
         assert_eq!(ic.memory_str(), "3500,9,10,70,2,3,11,0,99,30,40,50");
-        assert_eq!(ic.current_pos(), 8);
+        assert_eq!(ic.program_counter(), 8);
 
         // This is the halt instruction and should also complete successfully, termination of
         // execution is tested via the run() function.
