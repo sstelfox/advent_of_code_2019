@@ -8,7 +8,7 @@ const MEMORY_SIZE: usize = 100;
 pub enum Fault {
     InvalidDestination(usize, usize),
     MemoryExceeded,
-    MissingArgument(usize, usize),
+    MissingMemory(usize, usize),
     ProgramTooBig(usize),
     UninitializedOperation(usize),
     UnknownOperation(usize, usize),
@@ -28,17 +28,6 @@ impl IntcodeComputer {
 
         self.pos = new_pos;
         Ok(())
-    }
-
-    pub fn argument(&self, position: usize) -> Result<usize, Fault> {
-        if position > MEMORY_SIZE {
-            return Err(Fault::MemoryExceeded);
-        }
-
-        match self.memory[position] {
-            Some(val) => Ok(val),
-            None => Err(Fault::MissingArgument(self.pos, position)),
-        }
     }
 
     pub fn current_op(&self) -> Result<Operation, Fault> {
@@ -75,8 +64,64 @@ impl IntcodeComputer {
         self.memory.iter().filter_map(|m| m.as_ref()).map(|m| m.to_string()).collect::<Vec<_>>().join(",")
     }
 
+    /// Safely returns the value stored at the provided address.
+    pub fn retrieve(&self, position: usize) -> Result<usize, Fault> {
+        if position > MEMORY_SIZE {
+            return Err(Fault::MemoryExceeded);
+        }
+
+        match self.memory[position] {
+            Some(val) => Ok(val),
+            None => Err(Fault::MissingMemory(self.pos, position)),
+        }
+    }
+
     /// Steps the state of the computer performing one operation. If the 
     pub fn step(&mut self) -> Result<(), Fault> {
+        match self.current_op()? {
+            Operation::Add => {
+                let left_addr = self.retrieve(self.pos + 1)?;
+                let right_addr = self.retrieve(self.pos + 2)?;
+
+                let left_val = self.retrieve(left_addr)?;
+                let right_val = self.retrieve(right_addr)?;
+
+                let dest_addr = self.pos + 3;
+                if dest_addr > MEMORY_SIZE {
+                    return Err(Fault::InvalidDestination(self.pos, dest_addr));
+                }
+
+                let destination = self.retrieve(dest_addr)?;
+                self.memory[destination] = Some(left_val + right_val);
+            },
+            Operation::Mul => {
+                let left_addr = self.retrieve(self.pos + 1)?;
+                let right_addr = self.retrieve(self.pos + 2)?;
+
+                let left_val = self.retrieve(left_addr)?;
+                let right_val = self.retrieve(right_addr)?;
+
+                let dest_addr = self.pos + 3;
+                if dest_addr > MEMORY_SIZE {
+                    return Err(Fault::InvalidDestination(self.pos, dest_addr));
+                }
+
+                let destination = self.retrieve(dest_addr)?;
+                self.memory[destination] = Some(left_val * right_val);
+            },
+            _ => (),
+        }
+
+        // Not sure if this is undefined behavior or intentional. The challenge specifically
+        // states:
+        //
+        // > Once you're done processing an opcode, move to the next one by stepping forward 4
+        // > positions.
+        //
+        // Halt is a valid operation and we will have successfully processed it at this point so
+        // according to the above we should advance the program counter even if it is a halt
+        // instruction...
+        self.advance()?;
 
         Ok(())
     }
@@ -146,15 +191,15 @@ mod test {
     }
 
     #[test]
-    fn test_argument_retrieval() {
+    fn test_memory_retrieval() {
         let mut memory: [Option<usize>; MEMORY_SIZE] = [None; MEMORY_SIZE];
         memory[7] = Some(45);
 
         let ic = IntcodeComputer { pos: 0, memory: memory };
 
-        assert_eq!(ic.argument(7), Ok(45));
-        assert_eq!(ic.argument(1), Err(Fault::MissingArgument(0, 1)));
-        assert_eq!(ic.argument(MEMORY_SIZE + 1), Err(Fault::MemoryExceeded));
+        assert_eq!(ic.retrieve(7), Ok(45));
+        assert_eq!(ic.retrieve(1), Err(Fault::MissingMemory(0, 1)));
+        assert_eq!(ic.retrieve(MEMORY_SIZE + 1), Err(Fault::MemoryExceeded));
     }
 
     #[test]
@@ -228,9 +273,60 @@ mod test {
     }
 
     #[test]
-    fn test_sample_prog1() {
+    fn test_addition_step() {
+        let sample_prog = "1,4,5,6,10,20";
+
+        let mut ic = IntcodeComputer::from_str(sample_prog).unwrap();
+        assert_eq!(ic.memory_str(), sample_prog);
+
+        assert_eq!(ic.current_op(), Ok(Operation::Add));
+        assert_eq!(ic.step(), Ok(()));
+        assert_eq!(ic.current_pos(), 4);
+        assert_eq!(ic.memory_str(), "1,4,5,6,10,20,30");
+    }
+
+    #[test]
+    fn test_multiplication_step() {
+        let sample_prog = "2,4,5,6,10,20";
+
+        let mut ic = IntcodeComputer::from_str(sample_prog).unwrap();
+        assert_eq!(ic.memory_str(), sample_prog);
+
+        assert_eq!(ic.current_op(), Ok(Operation::Mul));
+        assert_eq!(ic.step(), Ok(()));
+        assert_eq!(ic.current_pos(), 4);
+        assert_eq!(ic.memory_str(), "2,4,5,6,10,20,200");
+    }
+
+    #[test]
+    fn test_halt_step() {
+        let sample_prog = "99";
+
+        let mut ic = IntcodeComputer::from_str(sample_prog).unwrap();
+        assert_eq!(ic.memory_str(), sample_prog);
+
+        assert_eq!(ic.current_op(), Ok(Operation::Halt));
+        assert_eq!(ic.step(), Ok(()));
+        assert_eq!(ic.memory_str(), "99");
+        assert_eq!(ic.current_pos(), 4);
+    }
+
+    // This is the test program walked through by the advent challenge
+    #[test]
+    fn test_stepping_sample_prog() {
         let sample_prog = "1,9,10,3,2,3,11,0,99,30,40,50";
-        let _ic = IntcodeComputer::from_str(sample_prog).unwrap();
-        // TODO: test stepping through the program
+        let mut ic = IntcodeComputer::from_str(sample_prog).unwrap();
+
+        assert_eq!(ic.step(), Ok(()));
+        assert_eq!(ic.memory_str(), "1,9,10,70,2,3,11,0,99,30,40,50");
+        assert_eq!(ic.current_pos(), 4);
+
+        assert_eq!(ic.step(), Ok(()));
+        assert_eq!(ic.memory_str(), "3500,9,10,70,2,3,11,0,99,30,40,50");
+        assert_eq!(ic.current_pos(), 8);
+
+        // This is the halt instruction and should also complete successfully, termination of
+        // execution is tested via the run() function.
+        assert_eq!(ic.step(), Ok(()));
     }
 }
