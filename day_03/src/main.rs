@@ -36,6 +36,29 @@ impl FromStr for Direction {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub struct Location {
+    x: isize,
+    y: isize,
+}
+
+impl Location {
+    /// Calculates the absolute sum of differences between this location and another provided one.
+    pub fn manhattan_distance(&self, other: &Location) -> usize {
+        let x_dist: usize = (self.x - other.x).abs() as usize;
+        let y_dist: usize = (self.y - other.y).abs() as usize;
+
+        x_dist + y_dist
+    }
+
+    pub fn new(x: isize, y: isize) -> Self {
+        Location {
+            x,
+            y,
+        }
+    }
+}
+
 pub fn parse_directions(input: &str) -> Result<Vec<Direction>, String> {
     let directions = input.trim().split(',');
 
@@ -55,11 +78,38 @@ fn main() {
     let mut in_dat = String::new();
 
     in_dat_fh.read_to_string(&mut in_dat).unwrap();
+
+    // TODO:
+    //
+    // 1. The challenges for this one (and this data file) have two lines, each which needs to be
+    //    parsed independently.
+    // 2. I need to change the relative directions to absolute coordinates
+    // 3. I need to search the two lines for intersections (can't rely on points, have to use
+    //    edges)
+    // 4. For each intersection calculate the manhattan distance between the intersection and the
+    //    origin.
+    // 5. Return the distance (w + h) of the intersection with the lowest manhatten distance
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_manhattan_distance() {
+        let reference_point = Location::new(0, 0);
+
+        let good_cases: Vec<(Location, usize)> = vec![
+            (Location::new(0, 3), 3),
+            (Location::new(3, 0), 3),
+            (Location::new(-6, -6), 12),
+            (Location::new(-3, 6), 9),
+        ];
+
+        for (loc, expected) in good_cases {
+            assert_eq!(reference_point.manhattan_distance(&loc), expected);
+        }
+    }
 
     #[test]
     fn test_individual_direction() {
