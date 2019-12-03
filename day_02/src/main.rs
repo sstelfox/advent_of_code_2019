@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::Read;
 use std::str::FromStr;
 
-// The amount of RAM the IntcodeComputer has. I could change the implementation to allow for
+// The amount of RAM the IntCodeComputer has. I could change the implementation to allow for
 // arbitrary sized inputs by using a Vec<_> instead, but this feels more appropriate for the task.
 pub const MEMORY_SIZE: usize = 200;
 
@@ -15,14 +15,14 @@ pub enum Fault {
     UnknownOperation(usize, usize),
 }
 
-/// An IntcodeComputer emulator as defined in the day 2 segment of the 2019 Advent of Code.
-pub struct IntcodeComputer {
+/// An IntCodeComputer emulator as defined in the day 2 segment of the 2019 Advent of Code.
+pub struct IntCodeComputer {
     pc: usize,
     memory: [Option<usize>; MEMORY_SIZE],
     original_memory: [Option<usize>; MEMORY_SIZE],
 }
 
-impl IntcodeComputer {
+impl IntCodeComputer {
     /// Advances the current program counter past the current instruction. This is supposed to be
     /// dependent on the operation but currently only advances it a fixed 4 as was specified in the
     /// original problem definition.
@@ -54,10 +54,10 @@ impl IntcodeComputer {
         }
     }
 
-    /// Initialize a new IntcodeComputer emulator with the provided memory. This must be a slice
+    /// Initialize a new IntCodeComputer emulator with the provided memory. This must be a slice
     /// equal in size to `MEMORY_SIZE`.
     pub fn new(memory: [Option<usize>; MEMORY_SIZE]) -> Self {
-        IntcodeComputer {
+        IntCodeComputer {
             pc: 0,
             memory: memory.clone(),
             original_memory: memory,
@@ -173,9 +173,9 @@ impl IntcodeComputer {
     }
 }
 
-impl Default for IntcodeComputer {
+impl Default for IntCodeComputer {
     fn default() -> Self {
-        IntcodeComputer {
+        IntCodeComputer {
             pc: 0,
             memory: [None; MEMORY_SIZE],
             original_memory: [None; MEMORY_SIZE],
@@ -183,7 +183,7 @@ impl Default for IntcodeComputer {
     }
 }
 
-impl FromStr for IntcodeComputer {
+impl FromStr for IntCodeComputer {
     type Err = Fault;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -195,7 +195,7 @@ impl FromStr for IntcodeComputer {
         let mut memory: [Option<usize>; MEMORY_SIZE] = [None; MEMORY_SIZE];
         memory[..raw_mem.len()].copy_from_slice(&raw_mem);
 
-        Ok(IntcodeComputer::new(memory))
+        Ok(IntCodeComputer::new(memory))
     }
 }
 
@@ -211,7 +211,7 @@ fn main() {
     let mut in_dat = String::new();
 
     in_dat_fh.read_to_string(&mut in_dat).unwrap();
-    let mut ic = IntcodeComputer::from_str(&in_dat).unwrap();
+    let mut ic = IntCodeComputer::from_str(&in_dat).unwrap();
 
     // The instructions indicate to make these replacments before running
     ic.store(1, 12).unwrap();
@@ -234,7 +234,7 @@ mod test {
 
     #[test]
     fn test_advancing() -> FaultResult {
-        let mut ic = IntcodeComputer::default();
+        let mut ic = IntCodeComputer::default();
 
         ic.advance()?;
         assert_eq!(ic.program_counter(), 4);
@@ -243,7 +243,7 @@ mod test {
         assert_eq!(ic.program_counter(), 8);
 
         // Ensure we can't advance past the end of our memory without triggering an error
-        let mut ic = IntcodeComputer {
+        let mut ic = IntCodeComputer {
             pc: MEMORY_SIZE - 1,
             memory: [None; MEMORY_SIZE],
             original_memory: [None; MEMORY_SIZE],
@@ -255,7 +255,7 @@ mod test {
 
     #[test]
     fn test_memory_retrieval() -> FaultResult {
-        let mut ic = IntcodeComputer::default();
+        let mut ic = IntCodeComputer::default();
 
         ic.store(7, 45)?;
         assert_eq!(ic.retrieve(7)?, 45);
@@ -268,7 +268,7 @@ mod test {
 
     #[test]
     fn test_memory_storage() -> FaultResult {
-        let mut ic = IntcodeComputer::default();
+        let mut ic = IntCodeComputer::default();
 
         ic.store(0, 100)?;
         assert_eq!(ic.retrieve(0)?, 100);
@@ -280,7 +280,7 @@ mod test {
 
     #[test]
     fn test_halt_checking() -> FaultResult {
-        let mut ic = IntcodeComputer::default();
+        let mut ic = IntCodeComputer::default();
 
         // Setup our memory so we can advance through a couple of operation states
         ic.store(0, 1)?;
@@ -300,7 +300,7 @@ mod test {
 
     #[test]
     fn test_op_parsing() -> FaultResult {
-        let mut ic = IntcodeComputer::default();
+        let mut ic = IntCodeComputer::default();
 
         // Setup our memory so we can advance through a couple of operation states
         ic.store(0, 1)?;
@@ -328,7 +328,7 @@ mod test {
     #[test]
     fn test_prog_parsing() {
         let sample_prog = "1,2,3,4,5";
-        let ic = IntcodeComputer::from_str(sample_prog).unwrap();
+        let ic = IntCodeComputer::from_str(sample_prog).unwrap();
 
         assert_eq!(ic.memory_str(), sample_prog);
     }
@@ -336,7 +336,7 @@ mod test {
     #[test]
     fn test_trailing_whitespace() {
         let sample_prog = "1,2,3,100,0\n";
-        let ic = IntcodeComputer::from_str(sample_prog).unwrap();
+        let ic = IntCodeComputer::from_str(sample_prog).unwrap();
 
         assert_eq!(ic.memory_str(), "1,2,3,100,0");
     }
@@ -345,7 +345,7 @@ mod test {
     fn test_addition_step() -> FaultResult {
         let sample_prog = "1,4,5,6,10,20";
 
-        let mut ic = IntcodeComputer::from_str(sample_prog)?;
+        let mut ic = IntCodeComputer::from_str(sample_prog)?;
         assert_eq!(ic.memory_str(), sample_prog);
 
         assert_eq!(ic.current_op()?, Operation::Add);
@@ -360,7 +360,7 @@ mod test {
     fn test_multiplication_step() -> FaultResult {
         let sample_prog = "2,4,5,6,10,20";
 
-        let mut ic = IntcodeComputer::from_str(sample_prog)?;
+        let mut ic = IntCodeComputer::from_str(sample_prog)?;
         assert_eq!(ic.memory_str(), sample_prog);
 
         assert_eq!(ic.current_op()?, Operation::Mul);
@@ -375,7 +375,7 @@ mod test {
     fn test_halt_step() -> FaultResult {
         let sample_prog = "99";
 
-        let mut ic = IntcodeComputer::from_str(sample_prog)?;
+        let mut ic = IntCodeComputer::from_str(sample_prog)?;
         assert_eq!(ic.memory_str(), sample_prog);
 
         assert_eq!(ic.current_op()?, Operation::Halt);
@@ -390,7 +390,7 @@ mod test {
     #[test]
     fn test_stepping_sample_prog() -> FaultResult {
         let sample_prog = "1,9,10,3,2,3,11,0,99,30,40,50";
-        let mut ic = IntcodeComputer::from_str(sample_prog)?;
+        let mut ic = IntCodeComputer::from_str(sample_prog)?;
 
         ic.step()?;
         assert_eq!(ic.memory_str(), "1,9,10,70,2,3,11,0,99,30,40,50");
@@ -411,7 +411,7 @@ mod test {
     #[test]
     fn test_running_sample_prog() -> FaultResult {
         let sample_prog = "1,9,10,3,2,3,11,0,99,30,40,50";
-        let mut ic = IntcodeComputer::from_str(sample_prog)?;
+        let mut ic = IntCodeComputer::from_str(sample_prog)?;
 
         ic.run()?;
         assert_eq!(ic.memory_str(), "3500,9,10,70,2,3,11,0,99,30,40,50");
@@ -429,7 +429,7 @@ mod test {
         ];
 
         for (prog, result) in programs.iter() {
-            let mut ic = IntcodeComputer::from_str(prog)?;
+            let mut ic = IntCodeComputer::from_str(prog)?;
             ic.run()?;
             assert_eq!(ic.memory_str(), result.to_string());
         }
@@ -440,7 +440,7 @@ mod test {
     #[test]
     fn test_system_reset() -> FaultResult {
         let prog = "1,8,4,1,2,2,1,4,99";
-        let mut ic = IntcodeComputer::from_str(&prog)?;
+        let mut ic = IntCodeComputer::from_str(&prog)?;
 
         ic.run()?;
         assert_eq!(ic.memory_str(), "1,101,4,1,404,2,1,4,99");
