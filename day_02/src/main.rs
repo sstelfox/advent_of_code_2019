@@ -217,13 +217,34 @@ fn main() {
     ic.store(1, 12).unwrap();
     ic.store(2, 2).unwrap();
 
-    match ic.run() {
-        Ok(_) => println!("Program executed successfully."),
-        Err(err) => println!("Program crashed with error: {:?}", err),
-    }
+    if let Err(err) = ic.run() {
+        println!("Program crashed with error: {:?}", err);
+    };
 
-    println!("Final state was: {}", ic.memory_str());
     println!("Answer to step 1 is: {}", ic.retrieve(0).unwrap());
+    println!("Brute force searching the answer to step 2...");
+
+    // Alright so there are two possibilities for how I could go about finding the answer to step
+    // 2. The simple and straight forward is brute forcing the two values. They're both between
+    // 0-99 which means there is only 10k possibilities and Rust is very fast here. A more "fun"
+    // way to solve this would be to attempt to reverse the execution of the computer. This is
+    // still possible because there are no jumps only linear advancement, the only failure
+    // possibility here is if one of the opcodes got overwritten by the program... which is
+    // possible... Nah I'm just going to bruteforce it.
+    for noun in 0..100 {
+        for verb in 0..100 {
+            ic.reset();
+
+            ic.store(1, noun).unwrap();
+            ic.store(2, verb).unwrap();
+
+            ic.run().unwrap();
+
+            if ic.retrieve(0).unwrap() == 19690720 {
+                println!("Found a valid answer: {:0>2}{:0>2}", noun, verb);
+            }
+        }
+    }
 }
 
 #[cfg(test)]
