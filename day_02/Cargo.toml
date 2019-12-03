@@ -7,3 +7,11 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+computer = { path = "computer" }
+
+[workspace]
+members = ["computer"]
+
+[[bin]]
+name = "day_02"
+path = "src/main.rs"
