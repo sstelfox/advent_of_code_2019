@@ -2,6 +2,8 @@ use std::fs::File;
 use std::io::Read;
 use std::str::FromStr;
 
+use itertools::Itertools;
+
 #[derive(Debug, PartialEq)]
 pub enum Direction {
     Down(usize),
@@ -22,8 +24,11 @@ impl FromStr for Direction {
         let magnitude = match magnitude_str.parse::<usize>() {
             Ok(val) => val,
             Err(err) => {
-                return Err(format!("Numeric value `{}` isn't a valid usize: {}", magnitude_str, err));
-            },
+                return Err(format!(
+                    "Numeric value `{}` isn't a valid usize: {}",
+                    magnitude_str, err
+                ));
+            }
         };
 
         match direction {
@@ -31,7 +36,10 @@ impl FromStr for Direction {
             Some('L') => Ok(Direction::Left(magnitude)),
             Some('R') => Ok(Direction::Right(magnitude)),
             Some('U') => Ok(Direction::Up(magnitude)),
-            _ => Err(format!("Got `{:?}` which is not a valid direction...", direction)),
+            _ => Err(format!(
+                "Got `{:?}` which is not a valid direction...",
+                direction
+            )),
         }
     }
 }
@@ -61,10 +69,7 @@ impl Location {
     }
 
     pub fn new(x: isize, y: isize) -> Self {
-        Location {
-            x,
-            y,
-        }
+        Location { x, y }
     }
 }
 
@@ -75,7 +80,9 @@ pub fn parse_directions(input: &str) -> Result<Vec<Direction>, String> {
     for dir in directions {
         match Direction::from_str(&dir) {
             Ok(d) => res.push(d),
-            Err(err) => { return Err(err); },
+            Err(err) => {
+                return Err(err);
+            }
         }
     }
 
@@ -102,103 +109,29 @@ fn main() {
     let mut in_dat = String::new();
 
     in_dat_fh.read_to_string(&mut in_dat).unwrap();
+    let lines: Vec<&str> = in_dat.lines().collect();
+
+    let location_set: Option<(Vec<Location>, Vec<Location>)> = lines
+        .iter()
+        .map(|l| relative_to_absolute(Location::new(0, 0), parse_directions(l).unwrap()))
+        .collect_tuple();
+
+    let (_first_location_set, _second_location_set) = match location_set {
+        Some(ls) => ls,
+        None => {
+            println!("Input file didn't have exactly two input lines.");
+            std::process::exit(1);
+        },
+    };
 
     // TODO:
     //
-    // 1. The challenges for this one (and this data file) have two lines, each which needs to be
-    //    parsed independently.
-    // 2. I need to change the relative directions to absolute coordinates
-    // 3. I need to search the two lines for intersections (can't rely on points, have to use
+    // 1. I need to search the two lines for intersections (can't rely on points, have to use
     //    edges)
-    // 4. For each intersection calculate the manhattan distance between the intersection and the
+    // 2. For each intersection calculate the manhattan distance between the intersection and the
     //    origin.
-    // 5. Return the distance (w + h) of the intersection with the lowest manhatten distance
+    // 3. Return the distance (w + h) of the intersection with the lowest manhatten distance
 }
 
 #[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn test_manhattan_distance() {
-        let reference_point = Location::new(0, 0);
-
-        let good_cases: Vec<(Location, usize)> = vec![
-            (Location::new(0, 3), 3),
-            (Location::new(3, 0), 3),
-            (Location::new(-6, -6), 12),
-            (Location::new(-3, 6), 9),
-        ];
-
-        for (loc, expected) in good_cases {
-            assert_eq!(reference_point.manhattan_distance(&loc), expected);
-        }
-    }
-
-    #[test]
-    fn test_absolute_translation() {
-        let good_cases: Vec<(Location, Direction, Location)> = vec![
-            (Location::new(12, -3), Direction::Down(9), Location::new(12, -12)),
-            (Location::new(7, 38), Direction::Left(7), Location::new(0, 38)),
-            (Location::new(7, 38), Direction::Right(100), Location::new(107, 38)),
-            (Location::new(0, 0), Direction::Up(4), Location::new(0, 4)),
-        ];
-
-        for (loc, dir, expected) in good_cases {
-            assert_eq!(loc.apply_direction(&dir), expected);
-        }
-    }
-
-    #[test]
-    fn test_series_of_absolute_translations() {
-        let initial_position = Location::new(0, 0);
-
-        let direction_list: Vec<Direction> = vec![
-            Direction::Down(73),
-            Direction::Down(7),
-            Direction::Right(45),
-            Direction::Left(20),
-            Direction::Up(90),
-            Direction::Left(50),
-        ];
-
-        let expected_locations: Vec<Location> = vec![
-            Location::new(0, 0),
-            Location::new(0, -73),
-            Location::new(0, -80),
-            Location::new(45, -80),
-            Location::new(25, -80),
-            Location::new(25, 10),
-            Location::new(-25, 10),
-        ];
-
-        assert_eq!(relative_to_absolute(initial_position, direction_list), expected_locations);
-    }
-
-    #[test]
-    fn test_individual_direction() {
-        let good_cases: Vec<(&'static str, Direction)> = vec![
-            ("D23", Direction::Down(23)),
-            ("L100", Direction::Left(100)),
-            ("R2", Direction::Right(2)),
-            ("U12384", Direction::Up(12384)),
-        ];
-
-        for (input, expected) in good_cases {
-            assert_eq!(Direction::from_str(&input), Ok(expected));
-        }
-    }
-
-    #[test]
-    fn test_parsing_directions() {
-        let cases: Vec<(&'static str, Vec<Direction>)> = vec![
-            ("R8,U5,L5,D3", vec![Direction::Right(8), Direction::Up(5), Direction::Left(5), Direction::Down(3)]),
-            ("U7,R6,D4,L4", vec![Direction::Up(7), Direction::Right(6), Direction::Down(4), Direction::Left(4)]),
-        ];
-
-        for (input, expected) in cases {
-            let result = parse_directions(&input).unwrap();
-            assert_eq!(result, expected);
-        }
-    }
-}
+mod tests;
