@@ -92,6 +92,8 @@ pub fn relative_to_absolute(start: Location, directions: Vec<Direction>) -> Vec<
         current = new_current;
     }
 
+    points.push(current);
+
     points
 }
 
@@ -148,10 +150,29 @@ mod test {
     }
 
     #[test]
-    #[ignore]
     fn test_series_of_absolute_translations() {
-        // TODO: Meant to test relative_to_absolutes()
-        unimplemented!()
+        let initial_position = Location::new(0, 0);
+
+        let direction_list: Vec<Direction> = vec![
+            Direction::Down(73),
+            Direction::Down(7),
+            Direction::Right(45),
+            Direction::Left(20),
+            Direction::Up(90),
+            Direction::Left(50),
+        ];
+
+        let expected_locations: Vec<Location> = vec![
+            Location::new(0, 0),
+            Location::new(0, -73),
+            Location::new(0, -80),
+            Location::new(45, -80),
+            Location::new(25, -80),
+            Location::new(25, 10),
+            Location::new(-25, 10),
+        ];
+
+        assert_eq!(relative_to_absolute(initial_position, direction_list), expected_locations);
     }
 
     #[test]
