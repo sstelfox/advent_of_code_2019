@@ -43,6 +43,15 @@ pub struct Location {
 }
 
 impl Location {
+    pub fn apply_direction(&self, dir: &Direction) -> Location {
+        match dir {
+            Direction::Down(v) => Location::new(self.x, self.y - *v as isize),
+            Direction::Left(v) => Location::new(self.x - *v as isize, self.y),
+            Direction::Right(v) => Location::new(self.x + *v as isize, self.y),
+            Direction::Up(v) => Location::new(self.x, self.y + *v as isize),
+        }
+    }
+
     /// Calculates the absolute sum of differences between this location and another provided one.
     pub fn manhattan_distance(&self, other: &Location) -> usize {
         let x_dist: usize = (self.x - other.x).abs() as usize;
@@ -71,6 +80,19 @@ pub fn parse_directions(input: &str) -> Result<Vec<Direction>, String> {
     }
 
     Ok(res)
+}
+
+pub fn relative_to_absolute(start: Location, directions: Vec<Direction>) -> Vec<Location> {
+    let mut points: Vec<Location> = Vec::new();
+    let mut current = start;
+
+    for dir in directions.iter() {
+        let new_current = current.apply_direction(&dir);
+        points.push(current);
+        current = new_current;
+    }
+
+    points
 }
 
 fn main() {
@@ -109,6 +131,27 @@ mod test {
         for (loc, expected) in good_cases {
             assert_eq!(reference_point.manhattan_distance(&loc), expected);
         }
+    }
+
+    #[test]
+    fn test_absolute_translation() {
+        let good_cases: Vec<(Location, Direction, Location)> = vec![
+            (Location::new(12, -3), Direction::Down(9), Location::new(12, -12)),
+            (Location::new(7, 38), Direction::Left(7), Location::new(0, 38)),
+            (Location::new(7, 38), Direction::Right(100), Location::new(107, 38)),
+            (Location::new(0, 0), Direction::Up(4), Location::new(0, 4)),
+        ];
+
+        for (loc, dir, expected) in good_cases {
+            assert_eq!(loc.apply_direction(&dir), expected);
+        }
+    }
+
+    #[test]
+    #[ignore]
+    fn test_series_of_absolute_translations() {
+        // TODO: Meant to test relative_to_absolutes()
+        unimplemented!()
     }
 
     #[test]
