@@ -69,7 +69,7 @@ impl IntCodeComputer {
     pub fn new(memory: [Option<usize>; MEMORY_SIZE]) -> Self {
         IntCodeComputer {
             pc: 0,
-            memory: memory.clone(),
+            memory,
             original_memory: memory,
         }
     }
@@ -110,7 +110,7 @@ impl IntCodeComputer {
     /// Resets the computer to the initial state it was created with and resets the program counter
     /// to 0.
     pub fn reset(&mut self) {
-        self.memory = self.original_memory.clone();
+        self.memory = self.original_memory;
         self.pc = 0;
     }
 

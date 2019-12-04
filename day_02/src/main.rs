@@ -38,7 +38,7 @@ fn main() {
 
             icc.run().unwrap();
 
-            if icc.retrieve(0).unwrap() == 19690720 {
+            if icc.retrieve(0).unwrap() == 19_690_720 {
                 println!("Found a valid answer: {:0>2}{:0>2}", noun, verb);
             }
         }
