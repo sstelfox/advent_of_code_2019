@@ -33,10 +33,10 @@ impl FromStr for Direction {
         };
 
         match direction {
-            Some('D') => Ok(Direction::Down(magnitude)),
-            Some('L') => Ok(Direction::Left(magnitude)),
-            Some('R') => Ok(Direction::Right(magnitude)),
-            Some('U') => Ok(Direction::Up(magnitude)),
+            Some('D') => Ok(Self::Down(magnitude)),
+            Some('L') => Ok(Self::Left(magnitude)),
+            Some('R') => Ok(Self::Right(magnitude)),
+            Some('U') => Ok(Self::Up(magnitude)),
             _ => Err(format!(
                 "Got `{:?}` which is not a valid direction...",
                 direction
@@ -45,24 +45,24 @@ impl FromStr for Direction {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Location {
     x: isize,
     y: isize,
 }
 
 impl Location {
-    pub fn apply_direction(&self, dir: &Direction) -> Location {
+    pub fn apply_direction(&self, dir: &Direction) -> Self {
         match dir {
-            Direction::Down(v) => Location::new(self.x, self.y - *v as isize),
-            Direction::Left(v) => Location::new(self.x - *v as isize, self.y),
-            Direction::Right(v) => Location::new(self.x + *v as isize, self.y),
-            Direction::Up(v) => Location::new(self.x, self.y + *v as isize),
+            Direction::Down(v) => Self::new(self.x, self.y - *v as isize),
+            Direction::Left(v) => Self::new(self.x - *v as isize, self.y),
+            Direction::Right(v) => Self::new(self.x + *v as isize, self.y),
+            Direction::Up(v) => Self::new(self.x, self.y + *v as isize),
         }
     }
 
     /// Calculates the absolute sum of differences between this location and another provided one.
-    pub fn manhattan_distance(&self, other: &Location) -> usize {
+    pub fn manhattan_distance(&self, other: &Self) -> usize {
         let x_dist: usize = (self.x - other.x).abs() as usize;
         let y_dist: usize = (self.y - other.y).abs() as usize;
 
@@ -70,13 +70,48 @@ impl Location {
     }
 
     pub fn new(x: isize, y: isize) -> Self {
-        Location { x, y }
+        Self { x, y }
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct LineSegment(Location, Location);
 
 impl LineSegment {
+    /// This will give the intersecting location of the two lines defined by the line segments but
+    /// not necessarily the line segments themselves. The `intersects()` method will indicate
+    /// whether or not the intersection occurs at the line segment itself.
+    ///
+    /// This will return None if the two lines are parallel, even if the two lines are *the same
+    /// line*. There is an infinite number of intersections between a line and itself.
+    ///
+    /// Now that I think about it... I could have just done this and then tested that the resulting
+    /// intersection lies on both segments... That's probably would have been way easier... Oh
+    /// well...
+    pub fn intersecting_location(&self, other: &Self) -> Option<Location> {
+        // Get our 'self' line segments in 0 = ax + by + c form
+        let self_a = self.1.y - self.0.y;
+        let self_b = self.0.x - self.1.x;
+        let self_c = self_a * self.0.x + self_b * self.0.y;
+
+        let other_a = other.1.y - other.0.y;
+        let other_b = other.0.x - other.1.x;
+        let other_c = other_a * other.0.x + other_b * other.0.y;
+
+        let determinant = self_a * other_b - other_a * self_b;
+
+        // The lines are parallel so we bail out without finding a point. The lines could still be
+        // *the same line* if so there will be infinitely many intersections.
+        if determinant == 0 {
+            return None;
+        }
+
+        let x = (other_b * self_c - self_b * other_c) / determinant;
+        let y = (self_a * other_c - other_a * self_c) / determinant;
+
+        Some(Location::new(x, y))
+    }
+
     /// This one is a bit trickier to explain. This calculates all of the possible three point
     /// orientation combinations of the lines with points on the other line (the inverse ordering
     /// doesn't matter as it will always either be the opposite or they'll both by definition still be
@@ -102,7 +137,7 @@ impl LineSegment {
     /// possibility 5. If the orientation of any of the sets are colinear then we need to check if the
     /// last point in the set is on the segment of line of the between the first two in the set. If
     /// this is true for any of the combinations then then the line segments overlap.
-    pub fn intersects(&self, other: &LineSegment) -> bool {
+    pub fn intersects(&self, other: &Self) -> bool {
         let orientations: [Orientation; 4] = [
             Orientation::from_three_locations(&self.0, &self.1, &other.0),
             Orientation::from_three_locations(&self.0, &self.1, &other.1),
@@ -147,22 +182,6 @@ impl LineSegment {
     }
 }
 
-pub fn parse_directions(input: &str) -> Result<Vec<Direction>, String> {
-    let directions = input.trim().split(',');
-
-    let mut res: Vec<Direction> = Vec::new();
-    for dir in directions {
-        match Direction::from_str(&dir) {
-            Ok(d) => res.push(d),
-            Err(err) => {
-                return Err(err);
-            }
-        }
-    }
-
-    Ok(res)
-}
-
 #[derive(Debug, PartialEq)]
 pub enum Orientation {
     Clockwise,
@@ -184,14 +203,30 @@ impl Orientation {
         let orientation = (l2.y - l1.y) * (l3.x - l2.x) - (l2.x - l1.x) * (l3.y - l2.y);
 
         match orientation {
-            orient if orient < 0 => Orientation::CounterClockwise,
-            orient if orient > 0 => Orientation::Clockwise,
-            _ => Orientation::Colinear,
+            orient if orient < 0 => Self::CounterClockwise,
+            orient if orient > 0 => Self::Clockwise,
+            _ => Self::Colinear,
         }
     }
 }
 
-pub fn relative_to_absolute(start: Location, directions: Vec<Direction>) -> Vec<Location> {
+pub fn parse_directions(input: &str) -> Result<Vec<Direction>, String> {
+    let directions = input.trim().split(',');
+
+    let mut res: Vec<Direction> = Vec::new();
+    for dir in directions {
+        match Direction::from_str(&dir) {
+            Ok(d) => res.push(d),
+            Err(err) => {
+                return Err(err);
+            }
+        }
+    }
+
+    Ok(res)
+}
+
+pub fn relative_to_absolute(start: Location, directions: &[Direction]) -> Vec<Location> {
     let mut points: Vec<Location> = Vec::new();
     let mut current = start;
 
@@ -206,6 +241,25 @@ pub fn relative_to_absolute(start: Location, directions: Vec<Direction>) -> Vec<
     points
 }
 
+pub fn location_set_to_line_set(location_set: Vec<Location>) -> Vec<LineSegment> {
+    let mut line_segments: Vec<LineSegment> = Vec::new();
+
+    let mut set_iter = location_set.into_iter();
+    let mut last_element = if let Some(e) = set_iter.next() {
+        e
+    } else {
+        // No locations were provided
+        return line_segments;
+    };
+
+    for next_element in set_iter {
+        line_segments.push(LineSegment(last_element, next_element.clone()));
+        last_element = next_element;
+    }
+
+    line_segments
+}
+
 fn main() {
     let mut in_dat_fh = File::open("./data/input_03.txt").unwrap();
     let mut in_dat = String::new();
@@ -215,16 +269,8 @@ fn main() {
 
     let location_set: Option<(Vec<Location>, Vec<Location>)> = lines
         .iter()
-        .map(|l| relative_to_absolute(Location::new(0, 0), parse_directions(l).unwrap()))
+        .map(|l| relative_to_absolute(Location::new(0, 0), &parse_directions(&l).unwrap()))
         .collect_tuple();
-
-    let (_first_location_set, _second_location_set) = match location_set {
-        Some(ls) => ls,
-        None => {
-            println!("Input file didn't have exactly two input lines.");
-            std::process::exit(1);
-        }
-    };
 
     // TODO:
     //
@@ -242,7 +288,7 @@ fn main() {
     //    won't be any of the odd edge cases as there would be with the ASCII maps.
     //
     //    There is one odd case that I don't know how this intersection check should behave, which
-    //    is the condition where the two line segments are overlapping and collinear. Is each
+    //    is the condition where the two line segments are overlapping and colinear. Is each
     //    integer point an intersection? Only the end? None of them? I'm guessing each point for
     //    now, but I'd also guess this probably won't come up.
     //
@@ -256,6 +302,70 @@ fn main() {
     //    last step.
     // 3. Return the distance (w + h) of the intersection with the lowest manhatten distance. Also
     //    straight forward, this just needs to do a min() over the results from the last step.
+
+    let (first_location_set, second_location_set) = if let Some(ls) = location_set {
+        ls
+    } else {
+        println!("Input file didn't have exactly two input lines.");
+        std::process::exit(1);
+    };
+
+    let mut intersection_list: Vec<Location> = Vec::new();
+
+    let first_line_set = location_set_to_line_set(first_location_set);
+    let second_line_set = location_set_to_line_set(second_location_set);
+
+    for first_line in &first_line_set {
+        for second_line in &second_line_set {
+            if first_line.intersects(&second_line) {
+
+                // We know these two lines intersect now, I just have to calculate the position
+                // they intersect at.
+                match first_line.intersecting_location(&second_line) {
+                    Some(loc) => intersection_list.push(loc),
+                    None => {
+                        // This is a weird edge case where the two line segments representing the
+                        // same line and are overlapping. This means one end of the line segment is
+                        // in the other one. We need to figure out which one then add that to our
+                        // list
+                        if first_line.is_present(&second_line.0) {
+                            intersection_list.push(second_line.0.clone());
+                        } else if first_line.is_present(&second_line.1) {
+                            intersection_list.push(second_line.1.clone());
+                        } else {
+                            // This should never be the case but log it in case something extremely
+                            // weird happens...
+                            println!("Weird intersection case: {:?}, {:?}", first_line, second_line);
+                        }
+                    },
+                }
+            }
+        }
+    }
+
+    println!("Found {} intersections in data set", intersection_list.len());
+
+    // Only thing left is to calculate the distances and return the smallest intersection. We'll be
+    // calculating from the origin, and due to how the relative to absolute positioning works, our
+    // first intersection should be at the origin (which we also want to remove so we can get a
+    // valid answer).
+    let mut intersection_iter = intersection_list.into_iter();
+    let origin = if let Some(o) = intersection_iter.next() {
+        if o != Location::new(0, 0) {
+            println!("Expectation fail, the first intersection wasn't the origin: {:?}", o);
+            std::process::exit(1);
+        }
+
+        o
+    } else {
+        println!("Expectation fail, there should be at least one intersection right?");
+        std::process::exit(1);
+    };
+
+    match intersection_iter.map(|il| origin.manhattan_distance(&il)).min() {
+        Some(min_dist) => println!("Minimum distance to intersection is: {}", min_dist),
+        None => println!("Couldn't find the minimum distance..."),
+    }
 }
 
 #[cfg(test)]

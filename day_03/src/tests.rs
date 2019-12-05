@@ -66,7 +66,7 @@ fn test_series_of_absolute_translations() {
     ];
 
     assert_eq!(
-        relative_to_absolute(initial_position, direction_list),
+        relative_to_absolute(initial_position, &direction_list),
         expected_locations
     );
 }
@@ -221,5 +221,53 @@ fn test_intersection_checks() {
         let line_seg2 = LineSegment(p3, p4);
 
         assert_eq!(line_seg1.intersects(&line_seg2), expectation);
+    }
+}
+
+#[test]
+fn test_location_set_to_line_set() {
+    let location_set = vec![];
+    let line_set: Vec<LineSegment> = vec![];
+    assert_eq!(location_set_to_line_set(location_set), line_set);
+
+    // One location isn't enough to make a line
+    let location_set = vec![Location::new(0, 0)];
+    let line_set: Vec<LineSegment> = vec![];
+    assert_eq!(location_set_to_line_set(location_set), line_set);
+
+    // Two is, and here after I'd expect N-1 line segments
+    let location_set = vec![Location::new(-12, 56), Location::new(3, 7)];
+    let line_set: Vec<LineSegment> = vec![LineSegment(Location::new(-12, 56), Location::new(3, 7))];
+    assert_eq!(location_set_to_line_set(location_set), line_set);
+
+    let location_set = vec![Location::new(1, 2), Location::new(3, 4), Location::new(5, 6)];
+    let line_set: Vec<LineSegment> = vec![
+        LineSegment(Location::new(1, 2), Location::new(3, 4)),
+        LineSegment(Location::new(3, 4), Location::new(5, 6)),
+    ];
+    assert_eq!(location_set_to_line_set(location_set), line_set);
+}
+
+#[test]
+fn test_line_segment_intersection_calculation() {
+    let cases: Vec<(Location, Location, Location, Location, Option<Location>)> = vec![
+        // Parallel
+        (Location::new(1, 1), Location::new(1, 2), Location::new(2, 1), Location::new(2, 2), None),
+
+        // Meet at origin (overlapping line segments)
+        (Location::new(0, 2), Location::new(0, -2), Location::new(2, 0), Location::new(-2, 0), Some(Location::new(0, 0))),
+
+        // Meet at a non-overlapping location
+        (Location::new(1, 5), Location::new(2, 6), Location::new(1, 9), Location::new(2, 8), Some(Location::new(3, 7))),
+
+        // Parallel touching at one point only
+        (Location::new(0, 0), Location::new(9, 0), Location::new(0, 0), Location::new(-9, 0), Some(Location::new(0, 0))),
+    ];
+
+    for (l1, l2, l3, l4, result) in cases {
+        let line_seg1 = LineSegment(l1, l2);
+        let line_seg2 = LineSegment(l3, l4);
+
+        assert_eq!(line_seg1.intersecting_location(&line_seg2), result);
     }
 }
