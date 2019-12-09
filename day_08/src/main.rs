@@ -56,12 +56,47 @@ impl Image {
             layers.push(Layer::new(layer_dat.to_vec()));
             data = remaining_data;
 
-            if remaining_data.len() == 0 {
+            if data.len() == 0 {
                 break;
             }
         }
 
         Ok(Self { height, width, layers })
+    }
+
+    pub fn render(&self) -> String {
+        let pixel_count = self.width * self.height;
+        let mut image_output = vec![Pixel::Transparent; pixel_count];
+
+        for layer in &self.layers {
+            for (pixel_idx, pixel) in layer.pixels.iter().enumerate() {
+                if pixel == &Pixel::Transparent {
+                    continue;
+                }
+
+                if image_output[pixel_idx] == Pixel::Transparent {
+                    image_output[pixel_idx] = pixel.clone();
+                }
+            }
+        }
+
+        let mut output: String = String::new();
+
+        loop {
+            let (layer_dat, remaining_data) = image_output.split_at(self.width);
+
+            let row: String = layer_dat.iter().map(|c| c.to_char()).collect();
+            output.push_str(&row);
+            output.push_str(&'\n'.to_string());
+
+            image_output = remaining_data.to_vec();
+
+            if image_output.len() == 0 {
+                break;
+            }
+        }
+
+        output
     }
 
     pub fn width(&self) -> usize {
@@ -71,19 +106,20 @@ impl Image {
 
 #[derive(Debug, PartialEq)]
 pub struct Layer {
-    data: Vec<Pixel>,
+    // NOTE: I may want to make this a boxed slice as well...
+    pub pixels: Vec<Pixel>,
 }
 
 impl Layer {
-    pub fn new(data: Vec<Pixel>) -> Self {
-        Self { data }
+    pub fn new(pixels: Vec<Pixel>) -> Self {
+        Self { pixels }
     }
 
     pub fn value_count(&self, value: &Pixel) -> usize {
         let mut total = 0;
 
-        for d in &self.data {
-            if d == value {
+        for p in &self.pixels {
+            if p == value {
                 total += 1;
             }
         }
@@ -108,6 +144,17 @@ impl Pixel {
             _ => Err("invalid value attempted to become a pixel"),
         }
     }
+
+    /// This is not a reverse of the `from_char` operation. This results in a character appropriate
+    /// for display the resulting image.
+    pub fn to_char(&self) -> char {
+        match self {
+            Self::Black => '█',
+            // Probably could combine these two but ehhh nice to see the differences
+            Self::White => '_',
+            Self::Transparent => ' ',
+        }
+    }
 }
 
 pub fn str_to_pixels(input: &str) -> Vec<Pixel> {
@@ -127,6 +174,8 @@ fn main() {
 
     let image = Image::parse(25, 6, &pixels).unwrap();
     println!("Checksum: {}", image.checksum());
+
+    println!("{}", image.render());
 }
 
 #[cfg(test)]
