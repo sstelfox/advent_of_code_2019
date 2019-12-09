@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::convert::TryInto;
 
 /// The amount of RAM the IntCodeComputer has. I could change the implementation to allow for
 /// arbitrary sized inputs by using a Vec<_> instead, but this feels more appropriate for the task.
@@ -10,16 +11,23 @@ pub const MEMORY_SIZE: usize = 200;
 pub enum Fault {
     MemoryExceeded,
     MissingMemory(usize, usize),
+    NegativeMemoryAddress(usize, isize),
     ProgramTooBig(usize),
     UninitializedOperation(usize),
-    UnknownOperation(usize, usize),
+    UnknownOperation(usize, isize),
 }
 
 /// An IntCodeComputer emulator as defined in the day 2 segment of the 2019 Advent of Code.
 pub struct IntCodeComputer {
     pc: usize,
-    memory: [Option<usize>; MEMORY_SIZE],
-    original_memory: [Option<usize>; MEMORY_SIZE],
+
+    input: Vec<isize>,
+    memory: [Option<isize>; MEMORY_SIZE],
+
+    original_input: Vec<isize>,
+    original_memory: [Option<isize>; MEMORY_SIZE],
+
+    output: Vec<isize>,
 }
 
 impl IntCodeComputer {
@@ -66,11 +74,17 @@ impl IntCodeComputer {
 
     /// Initialize a new IntCodeComputer emulator with the provided memory. This must be a slice
     /// equal in size to `MEMORY_SIZE`.
-    pub fn new(memory: [Option<usize>; MEMORY_SIZE]) -> Self {
+    pub fn new(memory: [Option<isize>; MEMORY_SIZE]) -> Self {
         IntCodeComputer {
             pc: 0,
+
             memory,
             original_memory: memory,
+
+            input: Vec::new(),
+            original_input: Vec::new(),
+
+            output: Vec::new(),
         }
     }
 
@@ -110,20 +124,31 @@ impl IntCodeComputer {
     /// Resets the computer to the initial state it was created with and resets the program counter
     /// to 0.
     pub fn reset(&mut self) {
+        self.input = self.original_input.clone();
         self.memory = self.original_memory;
+        self.output = Vec::new();
         self.pc = 0;
     }
 
     /// Safely returns the value stored at the provided memory address. Will fault in the event of
     /// invalid addresses or uninitialized memory.
-    pub fn retrieve(&self, address: usize) -> Result<usize, Fault> {
-        if address >= MEMORY_SIZE {
+    pub fn retrieve(&self, address: isize) -> Result<isize, Fault> {
+        let safe_address: usize = match address.try_into() {
+            Ok(val) => val,
+            Err(_) => {
+                // Note: This may also fail due to being oversized and wrapping... but that seems
+                // incredibly unlikely...
+                return Err(Fault::NegativeMemoryAddress(self.pc, address));
+            },
+        };
+
+        if safe_address >= MEMORY_SIZE {
             return Err(Fault::MemoryExceeded);
         }
 
-        match self.memory[address] {
+        match self.memory[safe_address] {
             Some(val) => Ok(val),
-            None => Err(Fault::MissingMemory(self.pc, address)),
+            None => Err(Fault::MissingMemory(self.pc, safe_address)),
         }
     }
 
@@ -131,12 +156,12 @@ impl IntCodeComputer {
     /// more complicated instruction set that involved jumps I would likely want to limit the
     /// runtime of this to a certain number of instructions to ensure it always completed, but as
     /// it stands it can at most execute MEMORY_SIZE / 4 instructions before exiting.
-    pub fn run(&mut self) -> Result<(), Fault> {
+    pub fn run(&mut self) -> Result<Vec<isize>, Fault> {
         loop {
             self.step()?;
 
             if self.is_halted() {
-                return Ok(());
+                return Ok(self.output.clone());
             }
         }
     }
@@ -150,11 +175,14 @@ impl IntCodeComputer {
         // instruction to ensure we correctly advance to the next program state.
         let current_op = self.current_op()?;
 
+        // Super unlikely this fails, it will only do so if the PC is > 2^63
+        let i_pc: isize = self.pc.try_into().unwrap();
+
         match current_op {
             Operation::Add => {
-                let left_addr = self.retrieve(self.pc + 1)?;
-                let right_addr = self.retrieve(self.pc + 2)?;
-                let dest_addr = self.retrieve(self.pc + 3)?;
+                let left_addr = self.retrieve(i_pc + 1)?;
+                let right_addr = self.retrieve(i_pc + 2)?;
+                let dest_addr = self.retrieve(i_pc + 3)?;
 
                 let left_val = self.retrieve(left_addr)?;
                 let right_val = self.retrieve(right_addr)?;
@@ -162,9 +190,9 @@ impl IntCodeComputer {
                 self.store(dest_addr, left_val + right_val)?;
             }
             Operation::Mul => {
-                let left_addr = self.retrieve(self.pc + 1)?;
-                let right_addr = self.retrieve(self.pc + 2)?;
-                let dest_addr = self.retrieve(self.pc + 3)?;
+                let left_addr = self.retrieve(i_pc + 1)?;
+                let right_addr = self.retrieve(i_pc + 2)?;
+                let dest_addr = self.retrieve(i_pc + 3)?;
 
                 let left_val = self.retrieve(left_addr)?;
                 let right_val = self.retrieve(right_addr)?;
@@ -183,12 +211,21 @@ impl IntCodeComputer {
 
     /// Safely stores the provided value at the provided address. This will fault only if the
     /// memory address is invalid.
-    pub fn store(&mut self, address: usize, value: usize) -> Result<(), Fault> {
-        if address >= MEMORY_SIZE {
+    pub fn store(&mut self, address: isize, value: isize) -> Result<(), Fault> {
+        let safe_address: usize = match address.try_into() {
+            Ok(val) => val,
+            Err(_) => {
+                // Note: This may also fail due to being oversized and wrapping... but that seems
+                // incredibly unlikely...
+                return Err(Fault::NegativeMemoryAddress(self.pc, address));
+            },
+        };
+
+        if safe_address >= MEMORY_SIZE {
             return Err(Fault::MemoryExceeded);
         }
 
-        self.memory[address] = Some(value);
+        self.memory[safe_address] = Some(value);
         Ok(())
     }
 }
@@ -200,8 +237,14 @@ impl Default for IntCodeComputer {
     fn default() -> Self {
         IntCodeComputer {
             pc: 0,
+
+            input: Vec::new(),
+            original_input: Vec::new(),
+
             memory: [None; MEMORY_SIZE],
             original_memory: [None; MEMORY_SIZE],
+
+            output: Vec::new(),
         }
     }
 }
@@ -213,16 +256,16 @@ impl FromStr for IntCodeComputer {
     /// to the end of day 2 and returns an instance of the emulator that can be run. This expects
     /// only positive integer numbers on a single line separated by spaces.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let raw_mem: Vec<Option<usize>> = s
+        let raw_mem: Vec<Option<isize>> = s
             .trim()
             .split(',')
-            .map(|s| Some(s.parse::<usize>().unwrap()))
+            .map(|s| Some(s.parse::<isize>().unwrap()))
             .collect();
         if raw_mem.len() > MEMORY_SIZE {
             return Err(Fault::ProgramTooBig(raw_mem.len()));
         }
 
-        let mut memory: [Option<usize>; MEMORY_SIZE] = [None; MEMORY_SIZE];
+        let mut memory: [Option<isize>; MEMORY_SIZE] = [None; MEMORY_SIZE];
         memory[..raw_mem.len()].copy_from_slice(&raw_mem);
 
         Ok(IntCodeComputer::new(memory))
