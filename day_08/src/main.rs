@@ -10,6 +10,26 @@ pub struct Image {
 }
 
 impl Image {
+    pub fn checksum(&self) -> usize {
+        // Note: If this was production code I would need to check that layers has > 0 elements and
+        // return a Result instead, but that isn't a case I need to worry about here...
+
+        // Find the layer with the fewest zeros
+        let mut zero_count = self.layers.iter().enumerate().map(|(i, l)| (i, l.value_count(0)));
+        let (mut min_layer_idx, mut min_layer_count) = zero_count.next().unwrap();
+
+        for (layer_idx, zero_count) in zero_count {
+            if min_layer_count > zero_count {
+                min_layer_idx = layer_idx;
+                min_layer_count = zero_count;
+            }
+        }
+
+        // Return the product of the count of 1s and 2s on the layer with the fewest zeros per the
+        // spec defined in the problem
+        self.layers[min_layer_idx].value_count(1) * self.layers[min_layer_idx].value_count(2)
+    }
+
     pub fn height(&self) -> usize {
         self.height
     }
@@ -87,7 +107,8 @@ fn main() {
     in_dat_fh.read_to_string(&mut in_dat).unwrap();
     let data_bytes = str_to_data_bytes(&in_dat);
 
-    println!("{:?}", data_bytes);
+    let image = Image::parse(25, 6, &data_bytes).unwrap();
+    println!("Checksum: {}", image.checksum());
 }
 
 #[cfg(test)]
@@ -132,5 +153,21 @@ mod tests {
         assert_eq!(layer.value_count(2), 2);
         assert_eq!(layer.value_count(3), 1);
         assert_eq!(layer.value_count(4), 0);
+    }
+
+    #[test]
+    fn test_checksum() {
+        let test_image = Image {
+            height: 2,
+            width: 3,
+            layers: vec![
+                // This layer should have a checksum of 4
+                Layer::new(vec![0, 0, 1, 1, 2, 2]),
+                // This layer should not be selected, but would have a checksum of 2
+                Layer::new(vec![0, 0, 0, 1, 1, 2]),
+            ],
+        };
+
+        assert_eq!(test_image.checksum(), 4);
     }
 }
