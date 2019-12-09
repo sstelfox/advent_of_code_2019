@@ -49,15 +49,17 @@ impl FromStr for Direction {
 pub struct Location {
     x: isize,
     y: isize,
+
+    distance: usize,
 }
 
 impl Location {
     pub fn apply_direction(&self, dir: &Direction) -> Self {
         match dir {
-            Direction::Down(v) => Self::new(self.x, self.y - *v as isize),
-            Direction::Left(v) => Self::new(self.x - *v as isize, self.y),
-            Direction::Right(v) => Self::new(self.x + *v as isize, self.y),
-            Direction::Up(v) => Self::new(self.x, self.y + *v as isize),
+            Direction::Down(v) => Self::new(self.x, self.y - *v as isize, self.distance + *v),
+            Direction::Left(v) => Self::new(self.x - *v as isize, self.y, self.distance + *v),
+            Direction::Right(v) => Self::new(self.x + *v as isize, self.y, self.distance + *v),
+            Direction::Up(v) => Self::new(self.x, self.y + *v as isize, self.distance + *v),
         }
     }
 
@@ -69,8 +71,8 @@ impl Location {
         x_dist + y_dist
     }
 
-    pub fn new(x: isize, y: isize) -> Self {
-        Self { x, y }
+    pub fn new(x: isize, y: isize, distance: usize) -> Self {
+        Self { x, y, distance }
     }
 }
 
@@ -100,16 +102,39 @@ impl LineSegment {
 
         let determinant = self_a * other_b - other_a * self_b;
 
-        // The lines are parallel so we bail out without finding a point. The lines could still be
-        // *the same line* if so there will be infinitely many intersections.
+        // The lines are parallel, but could be the same line. For us we only care if an endpoint
+        // matches one of the other lines endpoints. If they overlap more than that there are
+        // infinite matching points and we'll just bail out without finding a point.
         if determinant == 0 {
+            if self.0 == other.0 {
+                return Some(Location::new(self.0.x, self.0.y, self.0.distance + other.0.distance));
+            }
+
+            if self.0 == other.1 {
+                return Some(Location::new(self.0.x, self.0.y, self.0.distance + other.1.distance));
+            }
+
+            if self.1 == other.0 {
+                return Some(Location::new(self.1.x, self.1.y, self.1.distance + other.0.distance));
+            }
+
+            if self.1 == other.1 {
+                return Some(Location::new(self.1.x, self.1.y, self.1.distance + other.1.distance));
+            }
+
             return None;
         }
 
         let x = (other_b * self_c - self_b * other_c) / determinant;
         let y = (self_a * other_c - other_a * self_c) / determinant;
 
-        Some(Location::new(x, y))
+        // Calculate the new distance the intersection will be at using a temporary point
+        let new_point = Location::new(x, y, 0);
+        let first_distance = self.0.manhattan_distance(&new_point);
+        let second_distance = other.0.manhattan_distance(&new_point);
+        let new_distance = self.0.distance + first_distance + other.0.distance + second_distance;
+
+        Some(Location::new(x, y, new_distance))
     }
 
     /// This one is a bit trickier to explain. This calculates all of the possible three point
@@ -269,7 +294,7 @@ fn main() {
 
     let location_set: Option<(Vec<Location>, Vec<Location>)> = lines
         .iter()
-        .map(|l| relative_to_absolute(Location::new(0, 0), &parse_directions(&l).unwrap()))
+        .map(|l| relative_to_absolute(Location::new(0, 0, 0), &parse_directions(&l).unwrap()))
         .collect_tuple();
 
     // TODO:
@@ -349,9 +374,9 @@ fn main() {
     // calculating from the origin, and due to how the relative to absolute positioning works, our
     // first intersection should be at the origin (which we also want to remove so we can get a
     // valid answer).
-    let mut intersection_iter = intersection_list.into_iter();
+    let mut intersection_iter = intersection_list.iter();
     let origin = if let Some(o) = intersection_iter.next() {
-        if o != Location::new(0, 0) {
+        if o != &Location::new(0, 0, 0) {
             println!("Expectation fail, the first intersection wasn't the origin: {:?}", o);
             std::process::exit(1);
         }
@@ -366,6 +391,14 @@ fn main() {
         Some(min_dist) => println!("Minimum distance to intersection is: {}", min_dist),
         None => println!("Couldn't find the minimum distance..."),
     }
+
+    let mut intersection_iter = intersection_list.iter();
+    // Discard the first one as it is our origin and has a distance of 0
+    intersection_iter.next();
+
+    // For part two we need to find the intersection that had the smallest total distance
+    let min_location = intersection_iter.map(|l| l.distance).min();
+    println!("Minimum intersection distance: {:?}", min_location);
 }
 
 #[cfg(test)]
