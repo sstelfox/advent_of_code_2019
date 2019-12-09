@@ -26,7 +26,7 @@ on the same layer, and so on until the last digit, which corresponds to the
 bottom-right pixel of the last layer.
 
 For example, given an image `3` pixels wide and `2` pixels tall, the image data
-123456789012 corresponds to the following image layers:
+`123456789012` corresponds to the following image layers:
 
 ```
 Layer 1: 123

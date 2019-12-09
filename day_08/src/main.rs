@@ -14,8 +14,9 @@ impl Image {
         self.height
     }
 
-    pub fn parse(width: usize, height: usize, raw_data: &Vec<u8>) -> Result<Self, &str> {
-        let layers = Vec::new();
+    pub fn parse(width: usize, height: usize, raw_data: &[u8]) -> Result<Self, &str> {
+        let mut layers = Vec::new();
+        let mut data = raw_data;
 
         let layer_size = width * height;
         if layer_size == 0 {
@@ -30,7 +31,15 @@ impl Image {
             return Err("Input data could not be broken up into a normal number of layers");
         }
 
-        // TODO: Split data into layers, add them to the vec
+        loop {
+            let (layer_dat, remaining_data) = data.split_at(layer_size);
+            layers.push(Layer::new(layer_dat.to_vec()));
+            data = remaining_data;
+
+            if remaining_data.len() == 0 {
+                break;
+            }
+        }
 
         Ok(Self { height, width, layers })
     }
@@ -51,16 +60,20 @@ impl Layer {
     }
 }
 
+pub fn str_to_data_bytes(input: &str) -> Vec<u8> {
+    input
+        .trim()
+        .chars()
+        .map(|c| c.to_string().parse::<u8>().unwrap())
+        .collect()
+}
+
 fn main() {
     let mut in_dat_fh = File::open("./data/input.txt").unwrap();
     let mut in_dat = String::new();
 
     in_dat_fh.read_to_string(&mut in_dat).unwrap();
-    let data_bytes: Vec<u8> = in_dat
-        .trim()
-        .chars()
-        .map(|c| c.to_string().parse::<u8>().unwrap())
-        .collect();
+    let data_bytes = str_to_data_bytes(&in_dat);
 
     println!("{:?}", data_bytes);
 }
@@ -79,5 +92,22 @@ mod tests {
         assert!(Image::parse(1, 1, &Vec::new()).is_err());
         assert!(Image::parse(1, 2, &vec![0]).is_err());
         assert!(Image::parse(1, 1, &vec![0]).is_ok());
+    }
+
+    #[test]
+    fn test_official_case() {
+        let input = "123456789012";
+        let parsed_input = Image::parse(3, 2, &str_to_data_bytes(&input)).unwrap();
+
+        let expected_output = Image {
+            height: 2,
+            width: 3,
+            layers: vec![
+                Layer::new(vec![1, 2, 3, 4, 5, 6]),
+                Layer::new(vec![7, 8, 9, 0, 1, 2]),
+            ],
+        };
+
+        assert_eq!(parsed_input, expected_output);
     }
 }
