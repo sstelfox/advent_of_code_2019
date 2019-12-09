@@ -58,6 +58,18 @@ impl Layer {
     pub fn new(data: Vec<u8>) -> Self {
         Self { data }
     }
+
+    pub fn value_count(&self, value: u8) -> usize {
+        let mut total = 0;
+
+        for &d in &self.data {
+            if d == value {
+                total += 1;
+            }
+        }
+
+        total
+    }
 }
 
 pub fn str_to_data_bytes(input: &str) -> Vec<u8> {
@@ -109,5 +121,16 @@ mod tests {
         };
 
         assert_eq!(parsed_input, expected_output);
+    }
+
+    #[test]
+    fn test_layer_value_counting() {
+        let layer = Layer::new(vec![0, 1, 1, 2, 3, 2, 1]);
+
+        assert_eq!(layer.value_count(0), 1);
+        assert_eq!(layer.value_count(1), 3);
+        assert_eq!(layer.value_count(2), 2);
+        assert_eq!(layer.value_count(3), 1);
+        assert_eq!(layer.value_count(4), 0);
     }
 }
