@@ -15,7 +15,7 @@ impl Image {
         // return a Result instead, but that isn't a case I need to worry about here...
 
         // Find the layer with the fewest zeros
-        let mut zero_count = self.layers.iter().enumerate().map(|(i, l)| (i, l.value_count(0)));
+        let mut zero_count = self.layers.iter().enumerate().map(|(i, l)| (i, l.value_count(&Pixel::Black)));
         let (mut min_layer_idx, mut min_layer_count) = zero_count.next().unwrap();
 
         for (layer_idx, zero_count) in zero_count {
@@ -27,14 +27,14 @@ impl Image {
 
         // Return the product of the count of 1s and 2s on the layer with the fewest zeros per the
         // spec defined in the problem
-        self.layers[min_layer_idx].value_count(1) * self.layers[min_layer_idx].value_count(2)
+        self.layers[min_layer_idx].value_count(&Pixel::White) * self.layers[min_layer_idx].value_count(&Pixel::Transparent)
     }
 
     pub fn height(&self) -> usize {
         self.height
     }
 
-    pub fn parse(width: usize, height: usize, raw_data: &[u8]) -> Result<Self, &str> {
+    pub fn parse(width: usize, height: usize, raw_data: &[Pixel]) -> Result<Self, &str> {
         let mut layers = Vec::new();
         let mut data = raw_data;
 
@@ -71,18 +71,18 @@ impl Image {
 
 #[derive(Debug, PartialEq)]
 pub struct Layer {
-    data: Vec<u8>,
+    data: Vec<Pixel>,
 }
 
 impl Layer {
-    pub fn new(data: Vec<u8>) -> Self {
+    pub fn new(data: Vec<Pixel>) -> Self {
         Self { data }
     }
 
-    pub fn value_count(&self, value: u8) -> usize {
+    pub fn value_count(&self, value: &Pixel) -> usize {
         let mut total = 0;
 
-        for &d in &self.data {
+        for d in &self.data {
             if d == value {
                 total += 1;
             }
@@ -92,11 +92,29 @@ impl Layer {
     }
 }
 
-pub fn str_to_data_bytes(input: &str) -> Vec<u8> {
+#[derive(Clone, Debug, PartialEq)]
+pub enum Pixel {
+    Black,
+    White,
+    Transparent,
+}
+
+impl Pixel {
+    pub fn from_char(val: &char) -> Result<Self, &str> {
+        match val {
+            '0' => Ok(Self::Black),
+            '1' => Ok(Self::White),
+            '2' => Ok(Self::Transparent),
+            _ => Err("invalid value attempted to become a pixel"),
+        }
+    }
+}
+
+pub fn str_to_pixels(input: &str) -> Vec<Pixel> {
     input
         .trim()
         .chars()
-        .map(|c| c.to_string().parse::<u8>().unwrap())
+        .map(|c| Pixel::from_char(&c).unwrap())
         .collect()
 }
 
@@ -105,9 +123,9 @@ fn main() {
     let mut in_dat = String::new();
 
     in_dat_fh.read_to_string(&mut in_dat).unwrap();
-    let data_bytes = str_to_data_bytes(&in_dat);
+    let pixels = str_to_pixels(&in_dat);
 
-    let image = Image::parse(25, 6, &data_bytes).unwrap();
+    let image = Image::parse(25, 6, &pixels).unwrap();
     println!("Checksum: {}", image.checksum());
 }
 
@@ -118,26 +136,29 @@ mod tests {
     #[test]
     fn test_image_parsing() {
         // Reject zero in either height or width
-        assert!(Image::parse(0, 100, &Vec::new()).is_err());
-        assert!(Image::parse(100, 0, &Vec::new()).is_err());
+        assert!(Image::parse(0, 100, &vec![]).is_err());
+        assert!(Image::parse(100, 0, &vec![]).is_err());
 
         // Reject incorrect lengths
-        assert!(Image::parse(1, 1, &Vec::new()).is_err());
-        assert!(Image::parse(1, 2, &vec![0]).is_err());
-        assert!(Image::parse(1, 1, &vec![0]).is_ok());
+        assert!(Image::parse(1, 1, &vec![]).is_err());
+        assert!(Image::parse(1, 2, &vec![Pixel::Black]).is_err());
+        assert!(Image::parse(1, 1, &vec![Pixel::Black]).is_ok());
     }
 
     #[test]
-    fn test_official_case() {
-        let input = "123456789012";
-        let parsed_input = Image::parse(3, 2, &str_to_data_bytes(&input)).unwrap();
+    fn test_modified_official_case() {
+        // The official case is "123456789012" but that contains invalid values once the second
+        // portion is revealed, I've replaced it with a unique non-repeating pattern containing
+        // only valid values
+        let input = "001210222011";
+        let parsed_input = Image::parse(3, 2, &str_to_pixels(&input)).unwrap();
 
         let expected_output = Image {
             height: 2,
             width: 3,
             layers: vec![
-                Layer::new(vec![1, 2, 3, 4, 5, 6]),
-                Layer::new(vec![7, 8, 9, 0, 1, 2]),
+                Layer::new(vec![Pixel::Black, Pixel::Black, Pixel::White, Pixel::Transparent, Pixel::White, Pixel::Black]),
+                Layer::new(vec![Pixel::Transparent, Pixel::Transparent, Pixel::Transparent, Pixel::Black, Pixel::White, Pixel::White]),
             ],
         };
 
@@ -146,13 +167,11 @@ mod tests {
 
     #[test]
     fn test_layer_value_counting() {
-        let layer = Layer::new(vec![0, 1, 1, 2, 3, 2, 1]);
+        let layer = Layer::new(vec![Pixel::Black, Pixel::White, Pixel::White, Pixel::Black, Pixel::Black, Pixel::Black, Pixel::White]);
 
-        assert_eq!(layer.value_count(0), 1);
-        assert_eq!(layer.value_count(1), 3);
-        assert_eq!(layer.value_count(2), 2);
-        assert_eq!(layer.value_count(3), 1);
-        assert_eq!(layer.value_count(4), 0);
+        assert_eq!(layer.value_count(&Pixel::Black), 4);
+        assert_eq!(layer.value_count(&Pixel::White), 3);
+        assert_eq!(layer.value_count(&Pixel::Transparent), 0);
     }
 
     #[test]
@@ -162,9 +181,9 @@ mod tests {
             width: 3,
             layers: vec![
                 // This layer should have a checksum of 4
-                Layer::new(vec![0, 0, 1, 1, 2, 2]),
+                Layer::new(vec![Pixel::Black, Pixel::Black, Pixel::White, Pixel::White, Pixel::Transparent, Pixel::Transparent]),
                 // This layer should not be selected, but would have a checksum of 2
-                Layer::new(vec![0, 0, 0, 1, 1, 2]),
+                Layer::new(vec![Pixel::Black, Pixel::Black, Pixel::Black, Pixel::White, Pixel::White, Pixel::Transparent]),
             ],
         };
 
