@@ -98,7 +98,7 @@ fn test_op_parsing() -> FaultResult {
     assert_eq!(ic.current_op()?, Operation::Mul(0));
 
     ic.advance(1)?;
-    assert_eq!(ic.current_op()?, Operation::Input(0));
+    assert_eq!(ic.current_op()?, Operation::Input);
 
     ic.advance(1)?;
     assert_eq!(ic.current_op()?, Operation::Output(0));
@@ -168,7 +168,7 @@ fn test_input_step() -> FaultResult {
     ic.set_input(vec![-832]);
     assert_eq!(ic.memory_str(), sample_prog);
 
-    assert_eq!(ic.current_op()?, Operation::Input(0));
+    assert_eq!(ic.current_op()?, Operation::Input);
     ic.step()?;
     assert_eq!(ic.program_counter(), 2);
     assert_eq!(ic.memory_str(), "3,3,99,-832");
