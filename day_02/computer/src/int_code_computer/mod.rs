@@ -1,4 +1,3 @@
-use log::debug;
 use std::str::FromStr;
 use std::convert::TryInto;
 
@@ -15,7 +14,7 @@ pub enum Fault {
     MissingInput(usize),
     MissingMemory(usize, usize),
     NegativeMemoryAddress(usize, isize),
-    ParameterModeInvalid(usize, isize),
+    ParameterModeInvalid(usize),
     ProgramTooBig(usize),
     UninitializedOperation(usize),
     UnknownOperation(usize, isize),
@@ -28,7 +27,6 @@ pub struct IntCodeComputer {
     input: Vec<isize>,
     memory: [Option<isize>; MEMORY_SIZE],
 
-    original_input: Vec<isize>,
     original_memory: [Option<isize>; MEMORY_SIZE],
 
     output: Vec<isize>,
@@ -71,7 +69,7 @@ impl IntCodeComputer {
                 let parameter_mode = match (op / 100).try_into() {
                     Ok(pm) => pm,
                     Err(_) => {
-                        return Err(Fault::ParameterModeInvalid(self.pc, op));
+                        return Err(Fault::ParameterModeInvalid(self.pc));
                     }
                 };
 
@@ -80,7 +78,7 @@ impl IntCodeComputer {
                     2 => Ok(Operation::Mul(parameter_mode)),
                     3 => {
                         if parameter_mode > 0 {
-                            return Err(Fault::ParameterModeInvalid(self.pc, op));
+                            return Err(Fault::ParameterModeInvalid(self.pc));
                         }
 
                         Ok(Operation::Input)
@@ -92,7 +90,7 @@ impl IntCodeComputer {
                     8 => Ok(Operation::Equals(parameter_mode)),
                     99 => {
                         if parameter_mode > 0 {
-                            return Err(Fault::ParameterModeInvalid(self.pc, op));
+                            return Err(Fault::ParameterModeInvalid(self.pc));
                         }
 
                         Ok(Operation::Halt)
@@ -114,8 +112,6 @@ impl IntCodeComputer {
             original_memory: memory,
 
             input: Vec::new(),
-            original_input: Vec::new(),
-
             output: Vec::new(),
         }
     }
@@ -153,22 +149,9 @@ impl IntCodeComputer {
             .join(",")
     }
 
-    pub fn output(&self) -> Vec<isize> {
-        self.output.clone()
-    }
-
-    /// Resets the computer to the initial state it was created with and resets the program counter
-    /// to 0.
-    pub fn reset(&mut self) {
-        self.input = self.original_input.clone();
-        self.memory = self.original_memory;
-        self.output = Vec::new();
-        self.pc = 0;
-    }
-
     /// Safely returns the value stored at the provided memory address. Will fault in the event of
     /// invalid addresses or uninitialized memory.
-    pub fn retrieve(&self, address: isize) -> Result<isize, Fault> {
+    pub fn mem_read(&self, address: isize) -> Result<isize, Fault> {
         let safe_address: usize = match address.try_into() {
             Ok(val) => val,
             Err(_) => {
@@ -185,6 +168,36 @@ impl IntCodeComputer {
         match self.memory[safe_address] {
             Some(val) => Ok(val),
             None => Err(Fault::MissingMemory(self.pc, safe_address)),
+        }
+    }
+
+    pub fn output(&self) -> Vec<isize> {
+        self.output.clone()
+    }
+
+    /// Resets the computer to the initial state it was created with and resets the program counter
+    /// to 0.
+    pub fn reset(&mut self) {
+        self.input = Vec::new();
+        self.memory = self.original_memory;
+        self.output = Vec::new();
+        self.pc = 0;
+    }
+
+    // Performs a parameter read using the provided access mode (0 - Position, 1 - Immediate)
+    pub fn retrieve(&self, address: isize, read_mode: usize) -> Result<isize, Fault> {
+        let raw_mem = self.mem_read(address)?;
+        match read_mode {
+           // Position mode, we need to return the value at the parameter's address
+           0 => Ok(self.mem_read(raw_mem)?),
+
+           // Immediate mode, return the value at the parameter's location
+           1 => Ok(raw_mem),
+
+           // All other modes are invalid
+           _ => {
+               Err(Fault::ParameterModeInvalid(self.pc))
+           }
         }
     }
 
@@ -207,9 +220,7 @@ impl IntCodeComputer {
         // the list. To get the correct order we need to reverse it when we initialize the
         // computer.
         let rev_input: Vec<isize> = input.into_iter().rev().collect();
-
-        self.input = rev_input.clone();
-        self.original_input = rev_input;
+        self.input = rev_input;
     }
 
     /// Steps the state of the computer by performing one operation and advancing the program
@@ -221,67 +232,21 @@ impl IntCodeComputer {
         // instruction to ensure we correctly advance to the next program state.
         let current_op = self.current_op()?;
 
-        // Super unlikely this fails, it will only do so if the PC is > 2^63
+        // Super unlikely this fails, it will only do so if the PC is >= 2^63
         let i_pc: isize = self.pc.try_into().unwrap();
 
         match current_op {
             Operation::Add(pm) => {
-                let left_param = self.retrieve(i_pc + 1)?;
-                let left_p_mode = pm % 10;
-                let left_val = match left_p_mode {
-                    // Position mode
-                    0 => self.retrieve(left_param)?,
-                    // Immediate mode
-                    1 => left_param,
-                    _ => {
-                        return Err(Fault::ParameterModeInvalid(self.pc, current_op.to_num()));
-                    }
-                };
-
-                let right_param = self.retrieve(i_pc + 2)?;
-                let right_p_mode = (pm / 10) % 10;
-                let right_val = match right_p_mode {
-                    // Position mode
-                    0 => self.retrieve(right_param)?,
-                    // Immediate mode
-                    1 => right_param,
-                    _ => {
-                        return Err(Fault::ParameterModeInvalid(self.pc, current_op.to_num()));
-                    }
-                };
-
-                let dest_addr = self.retrieve(i_pc + 3)?;
-
-                debug!("ADD {}(#{}),{}(#{}),{}", left_param, left_val, right_param, right_val, dest_addr);
+                let left_val = self.retrieve(i_pc + 1, pm % 10)?;
+                let right_val = self.retrieve(i_pc + 2, (pm / 10) % 10)?;
+                let dest_addr = self.retrieve(i_pc + 3, 1)?;
 
                 self.store(dest_addr, left_val + right_val)?;
             }
             Operation::Mul(pm) => {
-                let left_param = self.retrieve(i_pc + 1)?;
-                let right_param = self.retrieve(i_pc + 2)?;
-                let dest_addr = self.retrieve(i_pc + 3)?;
-
-                let left_p_mode = pm % 10;
-                let left_val = match left_p_mode {
-                    // Position mode
-                    0 => self.retrieve(left_param)?,
-                    // Immediate mode
-                    1 => left_param,
-                    _ => {
-                        return Err(Fault::ParameterModeInvalid(self.pc, current_op.to_num()));
-                    }
-                };
-
-                let right_p_mode = (pm / 10) % 10;
-                let right_val = match right_p_mode {
-                    // Position mode
-                    0 => self.retrieve(right_param)?,
-                    // Immediate mode
-                    1 => right_param,
-                    _ => {
-                        return Err(Fault::ParameterModeInvalid(self.pc, current_op.to_num()));
-                    }
-                };
+                let left_val = self.retrieve(i_pc + 1, pm % 10)?;
+                let right_val = self.retrieve(i_pc + 2, (pm / 10) % 10)?;
+                let dest_addr = self.retrieve(i_pc + 3, 1)?;
 
                 self.store(dest_addr, left_val * right_val)?;
             }
@@ -293,41 +258,18 @@ impl IntCodeComputer {
                     }
                 };
 
-                let dest_addr = self.retrieve(i_pc + 1)?;
+                let dest_addr = self.retrieve(i_pc + 1, 1)?;
                 self.store(dest_addr, input)?;
             }
             Operation::Output(pm) => {
-                let output_param = self.retrieve(i_pc + 1)?;
-
-                let output_p_mode = pm % 10;
-                let output_val = match output_p_mode {
-                    // Position mode
-                    0 => self.retrieve(output_param)?,
-                    // Immediate mode
-                    1 => output_param,
-                    _ => {
-                        return Err(Fault::ParameterModeInvalid(self.pc, current_op.to_num()));
-                    }
-                };
-
+                let output_val = self.retrieve(i_pc + 1, pm % 10)?;
                 self.output.push(output_val);
             }
             Operation::JumpIfTrue(pm) => {
-                let left_param = self.retrieve(i_pc + 1)?;
+                let conditional = self.retrieve(i_pc + 1, pm % 10)?;
 
-                let left_p_mode = pm % 10;
-                let left_val = match left_p_mode {
-                    // Position mode
-                    0 => self.retrieve(left_param)?,
-                    // Immediate mode
-                    1 => left_param,
-                    _ => {
-                        return Err(Fault::ParameterModeInvalid(self.pc, current_op.to_num()));
-                    }
-                };
-
-                if left_val != 0 {
-                    let new_pc = self.retrieve(i_pc + 2)?;
+                if conditional != 0 {
+                    let new_pc = self.retrieve(i_pc + 2, (pm / 10) % 10)?;
                     self.pc = match new_pc.try_into() {
                         Ok(pc) => pc,
                         Err(_) => {
@@ -335,26 +277,15 @@ impl IntCodeComputer {
                         },
                     };
 
-                    // Ensure we skip the op advancement
+                    // Ensure we skip the op advancement when we modify the PC
                     return Ok(());
                 }
             }
             Operation::JumpIfFalse(pm) => {
-                let left_param = self.retrieve(i_pc + 1)?;
+                let conditional = self.retrieve(i_pc + 1, pm % 10)?;
 
-                let left_p_mode = pm % 10;
-                let left_val = match left_p_mode {
-                    // Position mode
-                    0 => self.retrieve(left_param)?,
-                    // Immediate mode
-                    1 => left_param,
-                    _ => {
-                        return Err(Fault::ParameterModeInvalid(self.pc, current_op.to_num()));
-                    }
-                };
-
-                if left_val == 0 {
-                    let new_pc = self.retrieve(i_pc + 2)?;
+                if conditional == 0 {
+                    let new_pc = self.retrieve(i_pc + 2, (pm / 10) % 10)?;
                     self.pc = match new_pc.try_into() {
                         Ok(pc) => pc,
                         Err(_) => {
@@ -362,37 +293,15 @@ impl IntCodeComputer {
                         },
                     };
 
-                    // Ensure we skip the op advancement
+                    // Ensure we skip the op advancement when we modify the PC
                     return Ok(());
                 }
             }
             Operation::LessThan(pm) => {
-                let left_param = self.retrieve(i_pc + 1)?;
-                let right_param = self.retrieve(i_pc + 2)?;
+                let left_val = self.retrieve(i_pc + 1, pm % 10)?;
+                let right_val = self.retrieve(i_pc + 2, (pm / 10) % 10)?;
+                let dest_addr = self.retrieve(i_pc + 3, 1)?;
 
-                let left_p_mode = pm % 10;
-                let left_val = match left_p_mode {
-                    // Position mode
-                    0 => self.retrieve(left_param)?,
-                    // Immediate mode
-                    1 => left_param,
-                    _ => {
-                        return Err(Fault::ParameterModeInvalid(self.pc, current_op.to_num()));
-                    }
-                };
-
-                let right_p_mode = (pm / 10) % 10;
-                let right_val = match right_p_mode {
-                    // Position mode
-                    0 => self.retrieve(right_param)?,
-                    // Immediate mode
-                    1 => right_param,
-                    _ => {
-                        return Err(Fault::ParameterModeInvalid(self.pc, current_op.to_num()));
-                    }
-                };
-
-                let dest_addr = self.retrieve(i_pc + 3)?;
                 if left_val < right_val {
                     self.store(dest_addr, 1)?;
                 } else {
@@ -400,32 +309,10 @@ impl IntCodeComputer {
                 }
             }
             Operation::Equals(pm) => {
-                let left_param = self.retrieve(i_pc + 1)?;
-                let right_param = self.retrieve(i_pc + 2)?;
+                let left_val = self.retrieve(i_pc + 1, pm % 10)?;
+                let right_val = self.retrieve(i_pc + 2, (pm / 10) % 10)?;
+                let dest_addr = self.retrieve(i_pc + 3, 1)?;
 
-                let left_p_mode = pm % 10;
-                let left_val = match left_p_mode {
-                    // Position mode
-                    0 => self.retrieve(left_param)?,
-                    // Immediate mode
-                    1 => left_param,
-                    _ => {
-                        return Err(Fault::ParameterModeInvalid(self.pc, current_op.to_num()));
-                    }
-                };
-
-                let right_p_mode = (pm / 10) % 10;
-                let right_val = match right_p_mode {
-                    // Position mode
-                    0 => self.retrieve(right_param)?,
-                    // Immediate mode
-                    1 => right_param,
-                    _ => {
-                        return Err(Fault::ParameterModeInvalid(self.pc, current_op.to_num()));
-                    }
-                };
-
-                let dest_addr = self.retrieve(i_pc + 3)?;
                 if left_val == right_val {
                     self.store(dest_addr, 1)?;
                 } else {
@@ -472,7 +359,6 @@ impl Default for IntCodeComputer {
             pc: 0,
 
             input: Vec::new(),
-            original_input: Vec::new(),
 
             memory: [None; MEMORY_SIZE],
             original_memory: [None; MEMORY_SIZE],
@@ -535,22 +421,6 @@ impl Operation {
             Self::Equals(_) => 4,
             Self::Halt => 1,
         }
-    }
-
-    pub fn to_num(&self) -> isize {
-        let (base_op, pm) = match *self {
-            Self::Add(pm) => (1, pm),
-            Self::Mul(pm) => (2, pm),
-            Self::Input => (3, 0),
-            Self::Output(pm) => (4, pm),
-            Self::JumpIfTrue(pm) => (5, pm),
-            Self::JumpIfFalse(pm) => (6, pm),
-            Self::LessThan(pm) => (7, pm),
-            Self::Equals(pm) => (8, pm),
-            Self::Halt => (99, 0),
-        };
-
-        (pm * 100 + base_op).try_into().unwrap()
     }
 }
 
