@@ -3,7 +3,7 @@ use std::convert::TryInto;
 
 /// The amount of RAM the IntCodeComputer has. I could change the implementation to allow for
 /// arbitrary sized inputs by using a Vec<_> instead, but this feels more appropriate for the task.
-pub const MEMORY_SIZE: usize = 200;
+pub const MEMORY_SIZE: usize = 1024;
 
 /// This error state encapsulates the various ways a program run on the IntCodeComputer can fail
 /// and would generally be considered a hardware fault if it happened on a real machine.
