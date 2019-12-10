@@ -92,16 +92,16 @@ fn test_op_parsing() -> FaultResult {
     ic.store(4, 99)?;
     ic.store(6, 7500)?;
 
-    assert_eq!(ic.current_op()?, Operation::Add);
+    assert_eq!(ic.current_op()?, Operation::Add(0));
 
     ic.advance(1)?;
-    assert_eq!(ic.current_op()?, Operation::Mul);
+    assert_eq!(ic.current_op()?, Operation::Mul(0));
 
     ic.advance(1)?;
-    assert_eq!(ic.current_op()?, Operation::Input);
+    assert_eq!(ic.current_op()?, Operation::Input(0));
 
     ic.advance(1)?;
-    assert_eq!(ic.current_op()?, Operation::Output);
+    assert_eq!(ic.current_op()?, Operation::Output(0));
 
     ic.advance(1)?;
     assert_eq!(ic.current_op()?, Operation::Halt);
@@ -138,7 +138,7 @@ fn test_addition_step() -> FaultResult {
     let mut ic = IntCodeComputer::from_str(sample_prog)?;
     assert_eq!(ic.memory_str(), sample_prog);
 
-    assert_eq!(ic.current_op()?, Operation::Add);
+    assert_eq!(ic.current_op()?, Operation::Add(0));
     ic.step()?;
     assert_eq!(ic.program_counter(), 4);
     assert_eq!(ic.memory_str(), "1,4,5,6,10,20,30");
@@ -153,7 +153,7 @@ fn test_multiplication_step() -> FaultResult {
     let mut ic = IntCodeComputer::from_str(sample_prog)?;
     assert_eq!(ic.memory_str(), sample_prog);
 
-    assert_eq!(ic.current_op()?, Operation::Mul);
+    assert_eq!(ic.current_op()?, Operation::Mul(0));
     ic.step()?;
     assert_eq!(ic.program_counter(), 4);
     assert_eq!(ic.memory_str(), "2,4,5,6,10,20,200");
@@ -168,7 +168,7 @@ fn test_input_step() -> FaultResult {
     ic.set_input(vec![-832]);
     assert_eq!(ic.memory_str(), sample_prog);
 
-    assert_eq!(ic.current_op()?, Operation::Input);
+    assert_eq!(ic.current_op()?, Operation::Input(0));
     ic.step()?;
     assert_eq!(ic.program_counter(), 2);
     assert_eq!(ic.memory_str(), "3,3,99,-832");
@@ -183,7 +183,7 @@ fn test_output_step() -> FaultResult {
     let mut ic = IntCodeComputer::from_str(sample_prog)?;
     assert_eq!(ic.memory_str(), sample_prog);
 
-    assert_eq!(ic.current_op()?, Operation::Output);
+    assert_eq!(ic.current_op()?, Operation::Output(0));
     ic.step()?;
     assert_eq!(ic.program_counter(), 2);
     assert_eq!(ic.output(), vec![9723]);

@@ -13,6 +13,7 @@ pub enum Fault {
     MissingInput(usize),
     MissingMemory(usize, usize),
     NegativeMemoryAddress(usize, isize),
+    ParameterModeInvalid(usize, isize),
     ProgramTooBig(usize),
     UninitializedOperation(usize),
     UnknownOperation(usize, isize),
@@ -63,13 +64,29 @@ impl IntCodeComputer {
         }
 
         match self.memory[self.pc] {
-            Some(op) => match op {
-                1 => Ok(Operation::Add),
-                2 => Ok(Operation::Mul),
-                3 => Ok(Operation::Input),
-                4 => Ok(Operation::Output),
-                99 => Ok(Operation::Halt),
-                _ => Err(Fault::UnknownOperation(self.pc, op)),
+            Some(op) => {
+                let op_id = op % 100;
+                let parameter_mode = match (op / 100).try_into() {
+                    Ok(pm) => pm,
+                    Err(_) => {
+                        return Err(Fault::ParameterModeInvalid(self.pc, op));
+                    }
+                };
+
+                match op_id {
+                    1 => Ok(Operation::Add(parameter_mode)),
+                    2 => Ok(Operation::Mul(parameter_mode)),
+                    3 => Ok(Operation::Input(parameter_mode)),
+                    4 => Ok(Operation::Output(parameter_mode)),
+                    99 => {
+                        if parameter_mode > 0 {
+                            return Err(Fault::ParameterModeInvalid(self.pc, op));
+                        }
+
+                        Ok(Operation::Halt)
+                    },
+                    _ => Err(Fault::UnknownOperation(self.pc, op)),
+                }
             },
             None => Err(Fault::UninitializedOperation(self.pc)),
         }
@@ -196,7 +213,7 @@ impl IntCodeComputer {
         let i_pc: isize = self.pc.try_into().unwrap();
 
         match current_op {
-            Operation::Add => {
+            Operation::Add(_) => {
                 let left_addr = self.retrieve(i_pc + 1)?;
                 let right_addr = self.retrieve(i_pc + 2)?;
                 let dest_addr = self.retrieve(i_pc + 3)?;
@@ -206,7 +223,7 @@ impl IntCodeComputer {
 
                 self.store(dest_addr, left_val + right_val)?;
             }
-            Operation::Mul => {
+            Operation::Mul(_) => {
                 let left_addr = self.retrieve(i_pc + 1)?;
                 let right_addr = self.retrieve(i_pc + 2)?;
                 let dest_addr = self.retrieve(i_pc + 3)?;
@@ -216,7 +233,7 @@ impl IntCodeComputer {
 
                 self.store(dest_addr, left_val * right_val)?;
             }
-            Operation::Input => {
+            Operation::Input(_) => {
                 let input = match self.input.pop() {
                     Some(val) => val,
                     None => {
@@ -227,7 +244,7 @@ impl IntCodeComputer {
                 let dest_addr = self.retrieve(i_pc + 1)?;
                 self.store(dest_addr, input)?;
             }
-            Operation::Output => {
+            Operation::Output(_) => {
                 let output_addr = self.retrieve(i_pc + 1)?;
                 let output_val = self.retrieve(output_addr)?;
                 self.output.push(output_val);
@@ -309,10 +326,10 @@ impl FromStr for IntCodeComputer {
 /// Code calendar up to day 2.
 #[derive(Debug, PartialEq)]
 pub enum Operation {
-    Add,
-    Mul,
-    Input,
-    Output,
+    Add(usize),
+    Mul(usize),
+    Input(usize),
+    Output(usize),
     Halt,
 }
 
@@ -321,10 +338,10 @@ impl Operation {
     /// can be appropriately jumped over to the next instruction.
     pub fn instruction_size(&self) -> usize {
         match *self {
-            Self::Add => 4,
-            Self::Mul => 4,
-            Self::Input => 2,
-            Self::Output => 2,
+            Self::Add(_) => 4,
+            Self::Mul(_) => 4,
+            Self::Input(_) => 2,
+            Self::Output(_) => 2,
             Self::Halt => 1,
         }
     }
