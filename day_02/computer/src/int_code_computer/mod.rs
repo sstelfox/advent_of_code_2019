@@ -84,6 +84,10 @@ impl IntCodeComputer {
                         Ok(Operation::Input)
                     },
                     4 => Ok(Operation::Output(parameter_mode)),
+                    5 => Ok(Operation::JumpIfTrue(parameter_mode)),
+                    6 => Ok(Operation::JumpIfFalse(parameter_mode)),
+                    7 => Ok(Operation::LessThan(parameter_mode)),
+                    8 => Ok(Operation::Equals(parameter_mode)),
                     99 => {
                         if parameter_mode > 0 {
                             return Err(Fault::ParameterModeInvalid(self.pc, op));
@@ -304,7 +308,51 @@ impl IntCodeComputer {
 
                 self.output.push(output_val);
             }
-            _ => (),
+            Operation::JumpIfTrue(pm) => {
+                let left_param = self.retrieve(i_pc + 1)?;
+
+                let left_p_mode = pm % 10;
+                let left_val = match left_p_mode {
+                    // Position mode
+                    0 => self.retrieve(left_param)?,
+                    // Immediate mode
+                    1 => left_param,
+                    _ => {
+                        return Err(Fault::ParameterModeInvalid(self.pc, current_op.to_num()));
+                    }
+                };
+
+                if left_val != 0 {
+                    let new_pc = self.retrieve(i_pc + 2)?;
+                    self.pc = new_pc;
+
+                    // Ensure we skip the op advancement
+                    return Ok(());
+                }
+            }
+            Operation::JumpIfFalse(pm) => {
+                let left_param = self.retrieve(i_pc + 1)?;
+
+                let left_p_mode = pm % 10;
+                let left_val = match left_p_mode {
+                    // Position mode
+                    0 => self.retrieve(left_param)?,
+                    // Immediate mode
+                    1 => left_param,
+                    _ => {
+                        return Err(Fault::ParameterModeInvalid(self.pc, current_op.to_num()));
+                    }
+                };
+
+                if left_val == 0 {
+                    let new_pc = self.retrieve(i_pc + 2)?;
+                    self.pc = new_pc;
+
+                    // Ensure we skip the op advancement
+                    return Ok(());
+                }
+            }
+            Operation::Halt => (),
         }
 
         // Note: Depending on the instructions added in the future I may need to move this into the
@@ -385,6 +433,10 @@ pub enum Operation {
     Mul(usize),
     Input,
     Output(usize),
+    JumpIfTrue(usize),
+    JumpIfFalse(usize),
+    LessThan(usize),
+    Equals(usize),
     Halt,
 }
 
@@ -397,6 +449,10 @@ impl Operation {
             Self::Mul(_) => 4,
             Self::Input => 2,
             Self::Output(_) => 2,
+            Self::JumpIfTrue(_) => 3,
+            Self::JumpIfFalse(_) => 3,
+            Self::LessThan(_) => 4,
+            Self::Equals(_) => 4,
             Self::Halt => 1,
         }
     }
@@ -407,6 +463,10 @@ impl Operation {
             Self::Mul(pm) => (2, pm),
             Self::Input => (3, 0),
             Self::Output(pm) => (4, pm),
+            Self::JumpIfTrue(pm) => (5, pm),
+            Self::JumpIfFalse(pm) => (6, pm),
+            Self::LessThan(pm) => (7, pm),
+            Self::Equals(pm) => (8, pm),
             Self::Halt => (99, 0),
         };
 
