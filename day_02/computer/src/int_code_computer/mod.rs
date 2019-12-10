@@ -10,6 +10,7 @@ pub const MEMORY_SIZE: usize = 200;
 #[derive(Debug, PartialEq)]
 pub enum Fault {
     MemoryExceeded,
+    MissingInput(usize),
     MissingMemory(usize, usize),
     NegativeMemoryAddress(usize, isize),
     ProgramTooBig(usize),
@@ -65,6 +66,8 @@ impl IntCodeComputer {
             Some(op) => match op {
                 1 => Ok(Operation::Add),
                 2 => Ok(Operation::Mul),
+                3 => Ok(Operation::Input),
+                4 => Ok(Operation::Output),
                 99 => Ok(Operation::Halt),
                 _ => Err(Fault::UnknownOperation(self.pc, op)),
             },
@@ -74,15 +77,20 @@ impl IntCodeComputer {
 
     /// Initialize a new IntCodeComputer emulator with the provided memory. This must be a slice
     /// equal in size to `MEMORY_SIZE`.
-    pub fn new(memory: [Option<isize>; MEMORY_SIZE]) -> Self {
+    pub fn new(memory: [Option<isize>; MEMORY_SIZE], input: Vec<isize>) -> Self {
+        // Rust doesn't have a shift/unshift method so we always will be working from the back of
+        // the list. To get the correct order we need to reverse it when we initialize the
+        // computer.
+        let rev_input: Vec<isize> = input.into_iter().rev().collect();
+
         IntCodeComputer {
             pc: 0,
 
             memory,
             original_memory: memory,
 
-            input: Vec::new(),
-            original_input: Vec::new(),
+            input: rev_input.clone(),
+            original_input: rev_input,
 
             output: Vec::new(),
         }
@@ -199,6 +207,20 @@ impl IntCodeComputer {
 
                 self.store(dest_addr, left_val * right_val)?;
             }
+            Operation::Input => {
+                let input = match self.input.pop() {
+                    Some(val) => val,
+                    None => {
+                        return Err(Fault::MissingInput(self.pc));
+                    }
+                };
+
+                let dest_addr = self.retrieve(i_pc + 1)?;
+                self.store(dest_addr, input)?;
+            }
+            Operation::Output => {
+                self.output.push(self.retrieve(i_pc + 1)?);
+            }
             _ => (),
         }
 
@@ -268,7 +290,7 @@ impl FromStr for IntCodeComputer {
         let mut memory: [Option<isize>; MEMORY_SIZE] = [None; MEMORY_SIZE];
         memory[..raw_mem.len()].copy_from_slice(&raw_mem);
 
-        Ok(IntCodeComputer::new(memory))
+        Ok(IntCodeComputer::new(memory, Vec::new()))
     }
 }
 
@@ -278,6 +300,8 @@ impl FromStr for IntCodeComputer {
 pub enum Operation {
     Add,
     Mul,
+    Input,
+    Output,
     Halt,
 }
 
@@ -286,9 +310,11 @@ impl Operation {
     /// can be appropriately jumped over to the next instruction.
     pub fn instruction_size(&self) -> usize {
         match *self {
-            Operation::Add => 4,
-            Operation::Mul => 4,
-            Operation::Halt => 1,
+            Self::Add => 4,
+            Self::Mul => 4,
+            Self::Input => 2,
+            Self::Output => 2,
+            Self::Halt => 1,
         }
     }
 }
