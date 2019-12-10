@@ -363,11 +363,71 @@ impl IntCodeComputer {
                     return Ok(());
                 }
             }
-            Operation::LessThan(_pm) => {
-                unimplemented!();
+            Operation::LessThan(pm) => {
+                let left_param = self.retrieve(i_pc + 1)?;
+                let right_param = self.retrieve(i_pc + 2)?;
+
+                let left_p_mode = pm % 10;
+                let left_val = match left_p_mode {
+                    // Position mode
+                    0 => self.retrieve(left_param)?,
+                    // Immediate mode
+                    1 => left_param,
+                    _ => {
+                        return Err(Fault::ParameterModeInvalid(self.pc, current_op.to_num()));
+                    }
+                };
+
+                let right_p_mode = (pm / 10) % 10;
+                let right_val = match right_p_mode {
+                    // Position mode
+                    0 => self.retrieve(right_param)?,
+                    // Immediate mode
+                    1 => right_param,
+                    _ => {
+                        return Err(Fault::ParameterModeInvalid(self.pc, current_op.to_num()));
+                    }
+                };
+
+                let dest_addr = self.retrieve(i_pc + 3)?;
+                if left_val < right_val {
+                    self.store(dest_addr, 1)?;
+                } else {
+                    self.store(dest_addr, 0)?;
+                }
             }
-            Operation::Equals(_pm) => {
-                unimplemented!();
+            Operation::Equals(pm) => {
+                let left_param = self.retrieve(i_pc + 1)?;
+                let right_param = self.retrieve(i_pc + 2)?;
+
+                let left_p_mode = pm % 10;
+                let left_val = match left_p_mode {
+                    // Position mode
+                    0 => self.retrieve(left_param)?,
+                    // Immediate mode
+                    1 => left_param,
+                    _ => {
+                        return Err(Fault::ParameterModeInvalid(self.pc, current_op.to_num()));
+                    }
+                };
+
+                let right_p_mode = (pm / 10) % 10;
+                let right_val = match right_p_mode {
+                    // Position mode
+                    0 => self.retrieve(right_param)?,
+                    // Immediate mode
+                    1 => right_param,
+                    _ => {
+                        return Err(Fault::ParameterModeInvalid(self.pc, current_op.to_num()));
+                    }
+                };
+
+                let dest_addr = self.retrieve(i_pc + 3)?;
+                if left_val == right_val {
+                    self.store(dest_addr, 1)?;
+                } else {
+                    self.store(dest_addr, 0)?;
+                }
             }
             Operation::Halt => (),
         }

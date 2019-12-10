@@ -281,6 +281,96 @@ fn test_parameter_mode_samples() -> FaultResult {
 }
 
 #[test]
+fn test_jump_instruction_samples1() -> FaultResult {
+    let sample_prog = "3,9,8,9,10,9,4,9,99,-1,8";
+    let mut ic = IntCodeComputer::from_str(sample_prog)?;
+
+    ic.set_input(vec![4]);
+    ic.run()?;
+    assert_eq!(ic.output(), vec![0]);
+
+    ic.reset();
+    ic.set_input(vec![8]);
+    ic.run()?;
+    assert_eq!(ic.output(), vec![1]);
+
+    Ok(())
+}
+
+#[test]
+fn test_jump_instruction_samples2() -> FaultResult {
+    let sample_prog = "3,3,1108,-1,8,3,4,3,99";
+    let mut ic = IntCodeComputer::from_str(sample_prog)?;
+
+    ic.set_input(vec![-10]);
+    ic.run()?;
+    assert_eq!(ic.output(), vec![0]);
+
+    ic.reset();
+    ic.set_input(vec![8]);
+    ic.run()?;
+    assert_eq!(ic.output(), vec![1]);
+
+    Ok(())
+}
+
+#[test]
+fn test_jump_instruction_samples3() -> FaultResult {
+    let sample_prog = "3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9";
+    let mut ic = IntCodeComputer::from_str(sample_prog)?;
+
+    ic.set_input(vec![0]);
+    ic.run()?;
+    assert_eq!(ic.output(), vec![0]);
+
+    ic.reset();
+    ic.set_input(vec![129]);
+    ic.run()?;
+    assert_eq!(ic.output(), vec![1]);
+
+    Ok(())
+}
+
+#[test]
+fn test_jump_instruction_samples4() -> FaultResult {
+    let sample_prog = "3,3,1105,-1,9,1101,0,0,12,4,12,99,1";
+    let mut ic = IntCodeComputer::from_str(sample_prog)?;
+
+    ic.set_input(vec![0]);
+    ic.run()?;
+    assert_eq!(ic.output(), vec![0]);
+
+    ic.reset();
+    ic.set_input(vec![129]);
+    ic.run()?;
+    assert_eq!(ic.output(), vec![1]);
+
+    Ok(())
+}
+
+#[test]
+fn test_jump_instruction_samples5() -> FaultResult {
+    let sample_prog = "3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99";
+    let mut ic = IntCodeComputer::from_str(sample_prog)?;
+
+    ic.set_input(vec![5]);
+    ic.run()?;
+    assert_eq!(ic.output(), vec![999]);
+
+    ic.reset();
+    ic.set_input(vec![8]);
+    ic.run()?;
+    assert_eq!(ic.output(), vec![1000]);
+
+    ic.reset();
+    ic.set_input(vec![92]);
+    ic.run()?;
+    assert_eq!(ic.output(), vec![1001]);
+
+    Ok(())
+}
+
+#[test]
 fn test_system_reset() -> FaultResult {
     let prog = "1,8,4,1,2,2,1,4,99";
     let mut ic = IntCodeComputer::from_str(&prog)?;
