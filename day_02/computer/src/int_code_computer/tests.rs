@@ -258,6 +258,29 @@ fn test_additional_progs() -> FaultResult {
 }
 
 #[test]
+fn test_input_output_program() -> FaultResult {
+    let sample_prog = "3,0,4,0,99";
+    let mut ic = IntCodeComputer::from_str(sample_prog)?;
+    ic.set_input(vec![673]);
+
+    ic.run()?;
+    assert_eq!(ic.output(), vec![673]);
+
+    Ok(())
+}
+
+#[test]
+fn test_parameter_mode_samples() -> FaultResult {
+    let sample_prog = "1002,4,3,4,33";
+    let mut ic = IntCodeComputer::from_str(sample_prog)?;
+
+    ic.run()?;
+    assert_eq!(ic.memory_str(), "1002,4,3,4,99");
+
+    Ok(())
+}
+
+#[test]
 fn test_system_reset() -> FaultResult {
     let prog = "1,8,4,1,2,2,1,4,99";
     let mut ic = IntCodeComputer::from_str(&prog)?;
