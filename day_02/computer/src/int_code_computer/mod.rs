@@ -9,6 +9,7 @@ pub const MEMORY_SIZE: usize = 1024;
 /// and would generally be considered a hardware fault if it happened on a real machine.
 #[derive(Debug, PartialEq)]
 pub enum Fault {
+    InvalidProgramCount(usize, isize),
     MemoryExceeded,
     MissingInput(usize),
     MissingMemory(usize, usize),
@@ -324,7 +325,12 @@ impl IntCodeComputer {
 
                 if left_val != 0 {
                     let new_pc = self.retrieve(i_pc + 2)?;
-                    self.pc = new_pc;
+                    self.pc = match new_pc.try_into() {
+                        Ok(pc) => pc,
+                        Err(_) => {
+                            return Err(Fault::InvalidProgramCount(self.pc, new_pc));
+                        },
+                    };
 
                     // Ensure we skip the op advancement
                     return Ok(());
@@ -346,11 +352,22 @@ impl IntCodeComputer {
 
                 if left_val == 0 {
                     let new_pc = self.retrieve(i_pc + 2)?;
-                    self.pc = new_pc;
+                    self.pc = match new_pc.try_into() {
+                        Ok(pc) => pc,
+                        Err(_) => {
+                            return Err(Fault::InvalidProgramCount(self.pc, new_pc));
+                        },
+                    };
 
                     // Ensure we skip the op advancement
                     return Ok(());
                 }
+            }
+            Operation::LessThan(_pm) => {
+                unimplemented!();
+            }
+            Operation::Equals(_pm) => {
+                unimplemented!();
             }
             Operation::Halt => (),
         }
