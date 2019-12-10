@@ -17,5 +17,15 @@ fn main() {
         std::process::exit(1);
     };
 
-    println!("Output of program was: {:?}", icc.output());
+    println!("Output of program part 1 was: {:?}", icc.output());
+
+    icc.reset();
+    icc.set_input(vec![5]);
+
+    if let Err(err) = icc.run() {
+        println!("Running the program encountered and error: {:?}", err);
+        std::process::exit(1);
+    };
+
+    println!("Output of program part 2 was: {:?}", icc.output());
 }
