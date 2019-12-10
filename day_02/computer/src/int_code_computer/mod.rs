@@ -1,3 +1,4 @@
+use log::debug;
 use std::str::FromStr;
 use std::convert::TryInto;
 
@@ -226,9 +227,6 @@ impl IntCodeComputer {
         match current_op {
             Operation::Add(pm) => {
                 let left_param = self.retrieve(i_pc + 1)?;
-                let right_param = self.retrieve(i_pc + 2)?;
-                let dest_addr = self.retrieve(i_pc + 3)?;
-
                 let left_p_mode = pm % 10;
                 let left_val = match left_p_mode {
                     // Position mode
@@ -240,6 +238,7 @@ impl IntCodeComputer {
                     }
                 };
 
+                let right_param = self.retrieve(i_pc + 2)?;
                 let right_p_mode = (pm / 10) % 10;
                 let right_val = match right_p_mode {
                     // Position mode
@@ -250,6 +249,10 @@ impl IntCodeComputer {
                         return Err(Fault::ParameterModeInvalid(self.pc, current_op.to_num()));
                     }
                 };
+
+                let dest_addr = self.retrieve(i_pc + 3)?;
+
+                debug!("ADD {}(#{}),{}(#{}),{}", left_param, left_val, right_param, right_val, dest_addr);
 
                 self.store(dest_addr, left_val + right_val)?;
             }

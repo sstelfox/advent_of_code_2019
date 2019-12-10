@@ -2,6 +2,10 @@ use super::*;
 
 type FaultResult = Result<(), Fault>;
 
+fn init() {
+    let _ = env_logger::builder().is_test(true).try_init();
+}
+
 #[test]
 fn test_advancing() -> FaultResult {
     let mut ic = IntCodeComputer::from_str("1,0,0,0,2,0,0,0,99")?;
@@ -89,6 +93,7 @@ fn test_op_parsing() -> FaultResult {
     ic.store(1, 2)?;
     ic.store(2, 3)?;
     ic.store(3, 4)?;
+    // TODO: The rest of the op codes
     ic.store(4, 99)?;
     ic.store(6, 7500)?;
 
@@ -190,6 +195,8 @@ fn test_output_step() -> FaultResult {
 
     Ok(())
 }
+
+// TODO: The rest of the op codes
 
 #[test]
 fn test_halt_step() -> FaultResult {
@@ -316,6 +323,8 @@ fn test_jump_instruction_samples2() -> FaultResult {
 
 #[test]
 fn test_jump_instruction_samples3() -> FaultResult {
+    init();
+
     let sample_prog = "3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9";
     let mut ic = IntCodeComputer::from_str(sample_prog)?;
 
