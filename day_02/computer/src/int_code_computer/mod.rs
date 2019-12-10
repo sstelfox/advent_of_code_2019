@@ -77,20 +77,15 @@ impl IntCodeComputer {
 
     /// Initialize a new IntCodeComputer emulator with the provided memory. This must be a slice
     /// equal in size to `MEMORY_SIZE`.
-    pub fn new(memory: [Option<isize>; MEMORY_SIZE], input: Vec<isize>) -> Self {
-        // Rust doesn't have a shift/unshift method so we always will be working from the back of
-        // the list. To get the correct order we need to reverse it when we initialize the
-        // computer.
-        let rev_input: Vec<isize> = input.into_iter().rev().collect();
-
-        IntCodeComputer {
+    pub fn new(memory: [Option<isize>; MEMORY_SIZE]) -> Self {
+        Self {
             pc: 0,
 
             memory,
             original_memory: memory,
 
-            input: rev_input.clone(),
-            original_input: rev_input,
+            input: Vec::new(),
+            original_input: Vec::new(),
 
             output: Vec::new(),
         }
@@ -127,6 +122,10 @@ impl IntCodeComputer {
             .map(|m| m.to_string())
             .collect::<Vec<_>>()
             .join(",")
+    }
+
+    pub fn output(&self) -> Vec<isize> {
+        self.output.clone()
     }
 
     /// Resets the computer to the initial state it was created with and resets the program counter
@@ -174,6 +173,16 @@ impl IntCodeComputer {
         }
     }
 
+    pub fn set_input(&mut self, input: Vec<isize>) {
+        // Rust doesn't have a shift/unshift method so we always will be working from the back of
+        // the list. To get the correct order we need to reverse it when we initialize the
+        // computer.
+        let rev_input: Vec<isize> = input.into_iter().rev().collect();
+
+        self.input = rev_input.clone();
+        self.original_input = rev_input;
+    }
+
     /// Steps the state of the computer by performing one operation and advancing the program
     /// counter an appropriate amount. Will fault if the current program counter, any parameters,
     /// or target addresses are outside of the valid memory range or are uninitialized.
@@ -219,7 +228,9 @@ impl IntCodeComputer {
                 self.store(dest_addr, input)?;
             }
             Operation::Output => {
-                self.output.push(self.retrieve(i_pc + 1)?);
+                let output_addr = self.retrieve(i_pc + 1)?;
+                let output_val = self.retrieve(output_addr)?;
+                self.output.push(output_val);
             }
             _ => (),
         }
@@ -290,7 +301,7 @@ impl FromStr for IntCodeComputer {
         let mut memory: [Option<isize>; MEMORY_SIZE] = [None; MEMORY_SIZE];
         memory[..raw_mem.len()].copy_from_slice(&raw_mem);
 
-        Ok(IntCodeComputer::new(memory, Vec::new()))
+        Ok(IntCodeComputer::new(memory))
     }
 }
 

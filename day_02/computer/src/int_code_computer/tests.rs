@@ -87,8 +87,10 @@ fn test_op_parsing() -> FaultResult {
     // Setup our memory so we can advance through a couple of operation states
     ic.store(0, 1)?;
     ic.store(1, 2)?;
-    ic.store(2, 99)?;
-    ic.store(4, 7500)?;
+    ic.store(2, 3)?;
+    ic.store(3, 4)?;
+    ic.store(4, 99)?;
+    ic.store(6, 7500)?;
 
     assert_eq!(ic.current_op()?, Operation::Add);
 
@@ -96,13 +98,19 @@ fn test_op_parsing() -> FaultResult {
     assert_eq!(ic.current_op()?, Operation::Mul);
 
     ic.advance(1)?;
+    assert_eq!(ic.current_op()?, Operation::Input);
+
+    ic.advance(1)?;
+    assert_eq!(ic.current_op()?, Operation::Output);
+
+    ic.advance(1)?;
     assert_eq!(ic.current_op()?, Operation::Halt);
 
     ic.advance(1)?;
-    assert_eq!(ic.current_op(), Err(Fault::UninitializedOperation(3)));
+    assert_eq!(ic.current_op(), Err(Fault::UninitializedOperation(5)));
 
     ic.advance(1)?;
-    assert_eq!(ic.current_op(), Err(Fault::UnknownOperation(4, 7500)));
+    assert_eq!(ic.current_op(), Err(Fault::UnknownOperation(6, 7500)));
 
     Ok(())
 }
@@ -149,6 +157,36 @@ fn test_multiplication_step() -> FaultResult {
     ic.step()?;
     assert_eq!(ic.program_counter(), 4);
     assert_eq!(ic.memory_str(), "2,4,5,6,10,20,200");
+
+    Ok(())
+}
+
+#[test]
+fn test_input_step() -> FaultResult {
+    let sample_prog = "3,3,99";
+    let mut ic = IntCodeComputer::from_str(sample_prog)?;
+    ic.set_input(vec![-832]);
+    assert_eq!(ic.memory_str(), sample_prog);
+
+    assert_eq!(ic.current_op()?, Operation::Input);
+    ic.step()?;
+    assert_eq!(ic.program_counter(), 2);
+    assert_eq!(ic.memory_str(), "3,3,99,-832");
+
+    Ok(())
+}
+
+#[test]
+fn test_output_step() -> FaultResult {
+    let sample_prog = "4,3,99,9723";
+
+    let mut ic = IntCodeComputer::from_str(sample_prog)?;
+    assert_eq!(ic.memory_str(), sample_prog);
+
+    assert_eq!(ic.current_op()?, Operation::Output);
+    ic.step()?;
+    assert_eq!(ic.program_counter(), 2);
+    assert_eq!(ic.output(), vec![9723]);
 
     Ok(())
 }
