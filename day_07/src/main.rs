@@ -19,20 +19,35 @@ pub fn amplifier_chain(program: &str, settings: &[isize]) -> Result<isize, Fault
     Ok(signal)
 }
 
+pub fn is_valid_setting(settings: &[isize]) -> bool {
+    // Must have length of 5
+    if settings.len() != 5 {
+        return false;
+    }
+
+    // Must contain each setting (and by proxy, contain it exactly once)
+    for i in 0..5 {
+        if settings.iter().find(|s| i as isize == **s).is_none() {
+            return false;
+        }
+    }
+
+    true
+}
+
 pub fn find_maximum_output(program: &str) -> Result<isize, Fault> {
     let mut amplifier_settings: [isize; 5] = [0; 5];
     let mut max_value = 0;
-    let mut iteration = 0;
 
     loop {
-        let new_value = amplifier_chain(&program, &amplifier_settings)?;
+        // We only calculate and update the chain if the settings are valid
+        if is_valid_setting(&amplifier_settings) {
+            let new_value = amplifier_chain(&program, &amplifier_settings)?;
 
-        if new_value > max_value {
-            println!("found new maximum value on iteration {} (new: {}, old: {}) with amplifier setting {:?}", iteration, new_value, max_value, amplifier_settings);
-            max_value = new_value;
+            if new_value > max_value {
+                max_value = new_value;
+            }
         }
-
-        iteration += 1;
 
         for pos in 0..5 {
             amplifier_settings[pos] += 1;
