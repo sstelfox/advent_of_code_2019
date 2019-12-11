@@ -10,7 +10,7 @@ pub fn amplifier_chain(program: &str, settings: &[isize]) -> Result<isize, Fault
 
     for val in settings.into_iter() {
         icc.reset();
-        icc.set_input(vec![*val, signal]);
+        icc.add_input(vec![*val, signal]);
         icc.run()?;
 
         signal = icc.output().into_iter().nth(0).unwrap();
@@ -86,7 +86,7 @@ pub fn find_maximum_output(program: &str) -> Result<isize, Fault> {
     }
 }
 
-pub find_maximum_feedback_output(program: &str) -> Result<isize, Fault> {
+pub fn find_maximum_feedback_output(program: &str) -> Result<isize, Fault> {
     let mut amplifier_settings: [isize; 5] = [5, 6, 7, 8, 9];
     let mut max_value = 0;
 
