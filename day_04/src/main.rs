@@ -92,8 +92,14 @@ fn main() {
         }
     }
 
-    println!("In the given range there were basic {} matches out of {}", match_count, total_checked);
-    println!("In the given range there were extended {} matches out of {}", extended_match_count, total_checked);
+    println!(
+        "In the given range there were basic {} matches out of {}",
+        match_count, total_checked
+    );
+    println!(
+        "In the given range there were extended {} matches out of {}",
+        extended_match_count, total_checked
+    );
 }
 
 #[cfg(test)]

@@ -34,7 +34,11 @@ fn test_absolute_translation() {
             Direction::Right(100),
             Location::new(107, 38, 100),
         ),
-        (Location::new(0, 0, 0), Direction::Up(4), Location::new(0, 4, 4)),
+        (
+            Location::new(0, 0, 0),
+            Direction::Up(4),
+            Location::new(0, 4, 4),
+        ),
     ];
 
     for (loc, dir, expected) in good_cases {
@@ -195,25 +199,61 @@ fn test_location_on_segments() {
 fn test_intersection_checks() {
     let cases: Vec<(Location, Location, Location, Location, bool)> = vec![
         // Normal intersection
-        (Location::new(1, 1, 0), Location::new(5, 5, 0), Location::new(5, 1, 0), Location::new(1, 5, 0), true),
-
+        (
+            Location::new(1, 1, 0),
+            Location::new(5, 5, 0),
+            Location::new(5, 1, 0),
+            Location::new(1, 5, 0),
+            true,
+        ),
         // Overlapping endpoint
-        (Location::new(1, 1, 0), Location::new(5, 5, 0), Location::new(3, 3, 0), Location::new(1, 6, 0), true),
-
+        (
+            Location::new(1, 1, 0),
+            Location::new(5, 5, 0),
+            Location::new(3, 3, 0),
+            Location::new(1, 6, 0),
+            true,
+        ),
         // Non-intersecting segments (the lines would intersect)
-        (Location::new(-5, 3, 0), Location::new(5, 3, 0), Location::new(0, -5, 0), Location::new(0, 0, 0), false),
-
+        (
+            Location::new(-5, 3, 0),
+            Location::new(5, 3, 0),
+            Location::new(0, -5, 0),
+            Location::new(0, 0, 0),
+            false,
+        ),
         // Non-intersecting segments (the lines would intersect at an endpoint)
-        (Location::new(-5, 3, 0), Location::new(5, 3, 0), Location::new(-5, -5, 0), Location::new(-5, 0, 0), false),
-
+        (
+            Location::new(-5, 3, 0),
+            Location::new(5, 3, 0),
+            Location::new(-5, -5, 0),
+            Location::new(-5, 0, 0),
+            false,
+        ),
         // Parallel but non-intersecting
-        (Location::new(1, 1, 0), Location::new(5, 5, 0), Location::new(1, 2, 0), Location::new(5, 6, 0), false),
-
+        (
+            Location::new(1, 1, 0),
+            Location::new(5, 5, 0),
+            Location::new(1, 2, 0),
+            Location::new(5, 6, 0),
+            false,
+        ),
         // Colinear and intersecting
-        (Location::new(-5, 0, 0), Location::new(-1, 0, 0), Location::new(-2, 0, 0), Location::new(3, 0, 0), true),
-
+        (
+            Location::new(-5, 0, 0),
+            Location::new(-1, 0, 0),
+            Location::new(-2, 0, 0),
+            Location::new(3, 0, 0),
+            true,
+        ),
         // Colinear and non-intersecting
-        (Location::new(-7, 2, 0), Location::new(-4, 2, 0), Location::new(0, 2, 0), Location::new(4, 2, 0), false),
+        (
+            Location::new(-7, 2, 0),
+            Location::new(-4, 2, 0),
+            Location::new(0, 2, 0),
+            Location::new(4, 2, 0),
+            false,
+        ),
     ];
 
     for (p1, p2, p3, p4, expectation) in cases {
@@ -237,10 +277,17 @@ fn test_location_set_to_line_set() {
 
     // Two is, and here after I'd expect N-1 line segments
     let location_set = vec![Location::new(-12, 56, 0), Location::new(3, 7, 0)];
-    let line_set: Vec<LineSegment> = vec![LineSegment(Location::new(-12, 56, 0), Location::new(3, 7, 0))];
+    let line_set: Vec<LineSegment> = vec![LineSegment(
+        Location::new(-12, 56, 0),
+        Location::new(3, 7, 0),
+    )];
     assert_eq!(location_set_to_line_set(location_set), line_set);
 
-    let location_set = vec![Location::new(1, 2, 0), Location::new(3, 4, 0), Location::new(5, 6, 0)];
+    let location_set = vec![
+        Location::new(1, 2, 0),
+        Location::new(3, 4, 0),
+        Location::new(5, 6, 0),
+    ];
     let line_set: Vec<LineSegment> = vec![
         LineSegment(Location::new(1, 2, 0), Location::new(3, 4, 0)),
         LineSegment(Location::new(3, 4, 0), Location::new(5, 6, 0)),
@@ -250,18 +297,50 @@ fn test_location_set_to_line_set() {
 
 #[test]
 fn test_line_segment_intersection_calculation() {
-    let cases: Vec<(Location, Location, Location, Location, Option<Location>, bool)> = vec![
+    let cases: Vec<(
+        Location,
+        Location,
+        Location,
+        Location,
+        Option<Location>,
+        bool,
+    )> = vec![
         // Parallel
-        (Location::new(1, 1, 0), Location::new(1, 2, 0), Location::new(2, 1, 0), Location::new(2, 2, 0), None, false),
-
+        (
+            Location::new(1, 1, 0),
+            Location::new(1, 2, 0),
+            Location::new(2, 1, 0),
+            Location::new(2, 2, 0),
+            None,
+            false,
+        ),
         // Meet at origin (overlapping line segments)
-        (Location::new(0, 2, 0), Location::new(0, -2, 0), Location::new(2, 0, 0), Location::new(-2, 0, 0), Some(Location::new(0, 0, 4)), true),
-
+        (
+            Location::new(0, 2, 0),
+            Location::new(0, -2, 0),
+            Location::new(2, 0, 0),
+            Location::new(-2, 0, 0),
+            Some(Location::new(0, 0, 4)),
+            true,
+        ),
         // Meet at a non-overlapping location
-        (Location::new(1, 5, 0), Location::new(2, 6, 0), Location::new(1, 9, 0), Location::new(2, 8, 0), Some(Location::new(3, 7, 8)), false),
-
+        (
+            Location::new(1, 5, 0),
+            Location::new(2, 6, 0),
+            Location::new(1, 9, 0),
+            Location::new(2, 8, 0),
+            Some(Location::new(3, 7, 8)),
+            false,
+        ),
         // Parallel touching at one point only
-        (Location::new(0, 0, 0), Location::new(9, 0, 0), Location::new(0, 0, 0), Location::new(-9, 0, 0), Some(Location::new(0, 0, 0)), true),
+        (
+            Location::new(0, 0, 0),
+            Location::new(9, 0, 0),
+            Location::new(0, 0, 0),
+            Location::new(-9, 0, 0),
+            Some(Location::new(0, 0, 0)),
+            true,
+        ),
     ];
 
     for (l1, l2, l3, l4, result, intersects) in cases {

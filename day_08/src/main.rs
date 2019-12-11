@@ -15,7 +15,11 @@ impl Image {
         // return a Result instead, but that isn't a case I need to worry about here...
 
         // Find the layer with the fewest zeros
-        let mut zero_count = self.layers.iter().enumerate().map(|(i, l)| (i, l.value_count(&Pixel::Black)));
+        let mut zero_count = self
+            .layers
+            .iter()
+            .enumerate()
+            .map(|(i, l)| (i, l.value_count(&Pixel::Black)));
         let (mut min_layer_idx, mut min_layer_count) = zero_count.next().unwrap();
 
         for (layer_idx, zero_count) in zero_count {
@@ -27,7 +31,8 @@ impl Image {
 
         // Return the product of the count of 1s and 2s on the layer with the fewest zeros per the
         // spec defined in the problem
-        self.layers[min_layer_idx].value_count(&Pixel::White) * self.layers[min_layer_idx].value_count(&Pixel::Transparent)
+        self.layers[min_layer_idx].value_count(&Pixel::White)
+            * self.layers[min_layer_idx].value_count(&Pixel::Transparent)
     }
 
     pub fn height(&self) -> usize {
@@ -61,7 +66,11 @@ impl Image {
             }
         }
 
-        Ok(Self { height, width, layers })
+        Ok(Self {
+            height,
+            width,
+            layers,
+        })
     }
 
     pub fn render(&self) -> String {
@@ -206,8 +215,22 @@ mod tests {
             height: 2,
             width: 3,
             layers: vec![
-                Layer::new(vec![Pixel::Black, Pixel::Black, Pixel::White, Pixel::Transparent, Pixel::White, Pixel::Black]),
-                Layer::new(vec![Pixel::Transparent, Pixel::Transparent, Pixel::Transparent, Pixel::Black, Pixel::White, Pixel::White]),
+                Layer::new(vec![
+                    Pixel::Black,
+                    Pixel::Black,
+                    Pixel::White,
+                    Pixel::Transparent,
+                    Pixel::White,
+                    Pixel::Black,
+                ]),
+                Layer::new(vec![
+                    Pixel::Transparent,
+                    Pixel::Transparent,
+                    Pixel::Transparent,
+                    Pixel::Black,
+                    Pixel::White,
+                    Pixel::White,
+                ]),
             ],
         };
 
@@ -216,7 +239,15 @@ mod tests {
 
     #[test]
     fn test_layer_value_counting() {
-        let layer = Layer::new(vec![Pixel::Black, Pixel::White, Pixel::White, Pixel::Black, Pixel::Black, Pixel::Black, Pixel::White]);
+        let layer = Layer::new(vec![
+            Pixel::Black,
+            Pixel::White,
+            Pixel::White,
+            Pixel::Black,
+            Pixel::Black,
+            Pixel::Black,
+            Pixel::White,
+        ]);
 
         assert_eq!(layer.value_count(&Pixel::Black), 4);
         assert_eq!(layer.value_count(&Pixel::White), 3);
@@ -230,9 +261,23 @@ mod tests {
             width: 3,
             layers: vec![
                 // This layer should have a checksum of 4
-                Layer::new(vec![Pixel::Black, Pixel::Black, Pixel::White, Pixel::White, Pixel::Transparent, Pixel::Transparent]),
+                Layer::new(vec![
+                    Pixel::Black,
+                    Pixel::Black,
+                    Pixel::White,
+                    Pixel::White,
+                    Pixel::Transparent,
+                    Pixel::Transparent,
+                ]),
                 // This layer should not be selected, but would have a checksum of 2
-                Layer::new(vec![Pixel::Black, Pixel::Black, Pixel::Black, Pixel::White, Pixel::White, Pixel::Transparent]),
+                Layer::new(vec![
+                    Pixel::Black,
+                    Pixel::Black,
+                    Pixel::Black,
+                    Pixel::White,
+                    Pixel::White,
+                    Pixel::Transparent,
+                ]),
             ],
         };
 

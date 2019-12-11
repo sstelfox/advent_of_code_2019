@@ -20,7 +20,9 @@ pub fn recursive_fuel_cost(mass: usize) -> usize {
 
     loop {
         let fuel_mass = calculate_fuel(new_mass);
-        if fuel_mass == 0 { break; }
+        if fuel_mass == 0 {
+            break;
+        }
 
         total_fuel_mass += fuel_mass;
         new_mass = fuel_mass;
@@ -35,7 +37,10 @@ fn main() {
 
     in_dat_fh.read_to_string(&mut in_dat).unwrap();
 
-    let input_masses: Vec<usize> = in_dat.lines().map(|i| i.parse::<usize>().unwrap()).collect();
+    let input_masses: Vec<usize> = in_dat
+        .lines()
+        .map(|i| i.parse::<usize>().unwrap())
+        .collect();
 
     let first_result: usize = input_masses.iter().map(|i| calculate_fuel(*i)).sum();
     println!("Fuel required: {}", first_result);

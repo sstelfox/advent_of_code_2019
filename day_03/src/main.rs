@@ -107,19 +107,35 @@ impl LineSegment {
         // infinite matching points and we'll just bail out without finding a point.
         if determinant == 0 {
             if self.0 == other.0 {
-                return Some(Location::new(self.0.x, self.0.y, self.0.distance + other.0.distance));
+                return Some(Location::new(
+                    self.0.x,
+                    self.0.y,
+                    self.0.distance + other.0.distance,
+                ));
             }
 
             if self.0 == other.1 {
-                return Some(Location::new(self.0.x, self.0.y, self.0.distance + other.1.distance));
+                return Some(Location::new(
+                    self.0.x,
+                    self.0.y,
+                    self.0.distance + other.1.distance,
+                ));
             }
 
             if self.1 == other.0 {
-                return Some(Location::new(self.1.x, self.1.y, self.1.distance + other.0.distance));
+                return Some(Location::new(
+                    self.1.x,
+                    self.1.y,
+                    self.1.distance + other.0.distance,
+                ));
             }
 
             if self.1 == other.1 {
-                return Some(Location::new(self.1.x, self.1.y, self.1.distance + other.1.distance));
+                return Some(Location::new(
+                    self.1.x,
+                    self.1.y,
+                    self.1.distance + other.1.distance,
+                ));
             }
 
             return None;
@@ -343,7 +359,6 @@ fn main() {
     for first_line in &first_line_set {
         for second_line in &second_line_set {
             if first_line.intersects(&second_line) {
-
                 // We know these two lines intersect now, I just have to calculate the position
                 // they intersect at.
                 match first_line.intersecting_location(&second_line) {
@@ -360,15 +375,21 @@ fn main() {
                         } else {
                             // This should never be the case but log it in case something extremely
                             // weird happens...
-                            println!("Weird intersection case: {:?}, {:?}", first_line, second_line);
+                            println!(
+                                "Weird intersection case: {:?}, {:?}",
+                                first_line, second_line
+                            );
                         }
-                    },
+                    }
                 }
             }
         }
     }
 
-    println!("Found {} intersections in data set", intersection_list.len());
+    println!(
+        "Found {} intersections in data set",
+        intersection_list.len()
+    );
 
     // Only thing left is to calculate the distances and return the smallest intersection. We'll be
     // calculating from the origin, and due to how the relative to absolute positioning works, our
@@ -377,7 +398,10 @@ fn main() {
     let mut intersection_iter = intersection_list.iter();
     let origin = if let Some(o) = intersection_iter.next() {
         if o != &Location::new(0, 0, 0) {
-            println!("Expectation fail, the first intersection wasn't the origin: {:?}", o);
+            println!(
+                "Expectation fail, the first intersection wasn't the origin: {:?}",
+                o
+            );
             std::process::exit(1);
         }
 
@@ -387,7 +411,10 @@ fn main() {
         std::process::exit(1);
     };
 
-    match intersection_iter.map(|il| origin.manhattan_distance(&il)).min() {
+    match intersection_iter
+        .map(|il| origin.manhattan_distance(&il))
+        .min()
+    {
         Some(min_dist) => println!("Minimum distance to intersection is: {}", min_dist),
         None => println!("Couldn't find the minimum distance..."),
     }
