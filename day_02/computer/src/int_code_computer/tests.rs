@@ -23,11 +23,11 @@ fn test_advancing() -> FaultResult {
         pc: MEMORY_SIZE - 1,
 
         input: Vec::new(),
-
         memory: [None; MEMORY_SIZE],
-        original_memory: [None; MEMORY_SIZE],
-
         output: Vec::new(),
+
+        waiting_on_input: false,
+        original_memory: [None; MEMORY_SIZE],
     };
 
     // Allow advancing to equal to the memory size (allow halt to be the final instruction)
@@ -228,6 +228,9 @@ fn test_output_step() -> FaultResult {
     ic.step()?;
     assert_eq!(ic.program_counter(), 2);
     assert_eq!(ic.output(), vec![9723]);
+
+    // Output should clear after being pulled
+    assert_eq!(ic.output(), vec![]);
 
     Ok(())
 }

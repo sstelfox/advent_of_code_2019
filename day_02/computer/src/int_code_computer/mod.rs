@@ -11,7 +11,6 @@ pub const MEMORY_SIZE: usize = 1024;
 pub enum Fault {
     InvalidProgramCount(usize, isize),
     MemoryExceeded,
-    MissingInput(usize),
     MissingMemory(usize, usize),
     NegativeMemoryAddress(usize, isize),
     ParameterModeInvalid(usize),
@@ -26,13 +25,27 @@ pub struct IntCodeComputer {
 
     input: Vec<isize>,
     memory: [Option<isize>; MEMORY_SIZE],
+    output: Vec<isize>,
+
+    waiting_on_input: bool,
 
     original_memory: [Option<isize>; MEMORY_SIZE],
-
-    output: Vec<isize>,
 }
 
 impl IntCodeComputer {
+    pub fn add_input(&mut self, input: Vec<isize>) {
+        // Rust doesn't have a shift/unshift method so we always will be working from the back of
+        // the list. To get the correct order we need to reverse it when we initialize the
+        // computer.
+        let mut rev_input: Vec<isize> = input.into_iter().rev().collect();
+        rev_input.append(&mut self.input);
+        self.input = rev_input;
+
+        // Doesn't matter if the input was empty, we'll just stop again if we try to step the
+        // program again without anything, so clear the flag.
+        self.waiting_on_input = false;
+    }
+
     /// Advances the current program counter the provided amount. In part 1 of day 2, where this
     /// was initially specified it always advanced a fix amount (4). Part 2 expanded on this
     /// indicating that it should advance 1 + (number of parameters operator takes). This is still
@@ -108,11 +121,12 @@ impl IntCodeComputer {
         Self {
             pc: 0,
 
-            memory,
-            original_memory: memory,
-
             input: Vec::new(),
+            memory,
             output: Vec::new(),
+
+            waiting_on_input: false,
+            original_memory: memory,
         }
     }
 
@@ -129,6 +143,10 @@ impl IntCodeComputer {
     /// behavior.
     pub fn is_halted(&self) -> bool {
         self.current_op() == Ok(Operation::Halt)
+    }
+
+    pub fn is_waiting_on_input(&self) -> bool {
+        self.waiting_on_input
     }
 
     /// Convert the internal memory representation into the format used by the Advent examples.
@@ -171,17 +189,22 @@ impl IntCodeComputer {
         }
     }
 
-    pub fn output(&self) -> Vec<isize> {
-        self.output.clone()
+    pub fn output(&mut self) -> Vec<isize> {
+        let current_out = self.output.clone();
+        self.output = Vec::new();
+        current_out
     }
 
     /// Resets the computer to the initial state it was created with and resets the program counter
     /// to 0.
     pub fn reset(&mut self) {
+        self.pc = 0;
+
         self.input = Vec::new();
         self.memory = self.original_memory;
         self.output = Vec::new();
-        self.pc = 0;
+
+        self.waiting_on_input = false;
     }
 
     // Performs a parameter read using the provided access mode (0 - Position, 1 - Immediate)
@@ -205,30 +228,24 @@ impl IntCodeComputer {
     /// more complicated instruction set that involved jumps I would likely want to limit the
     /// runtime of this to a certain number of instructions to ensure it always completed, but as
     /// it stands it can at most execute MEMORY_SIZE / 4 instructions before exiting.
-    pub fn run(&mut self) -> Result<Vec<isize>, Fault> {
+    pub fn run(&mut self) -> Result<(), Fault> {
         loop {
             self.step()?;
 
-            if self.is_halted() {
-                return Ok(self.output.clone());
+            if self.is_halted() || self.is_waiting_on_input() {
+                return Ok(());
             }
         }
-    }
-
-    pub fn add_input(&mut self, input: Vec<isize>) {
-        // Rust doesn't have a shift/unshift method so we always will be working from the back of
-        // the list. To get the correct order we need to reverse it when we initialize the
-        // computer.
-        let mut rev_input: Vec<isize> = input.into_iter().rev().collect();
-        rev_input.append(&mut self.input);
-
-        self.input = rev_input;
     }
 
     /// Steps the state of the computer by performing one operation and advancing the program
     /// counter an appropriate amount. Will fault if the current program counter, any parameters,
     /// or target addresses are outside of the valid memory range or are uninitialized.
     pub fn step(&mut self) -> Result<(), Fault> {
+        if self.is_waiting_on_input() {
+            return Ok(());
+        }
+
         // Note: This needs to be stored here. After performing an operation the operation that the
         // current program counter is pointing at may have been modified. We need the original
         // instruction to ensure we correctly advance to the next program state.
@@ -256,7 +273,9 @@ impl IntCodeComputer {
                 let input = match self.input.pop() {
                     Some(val) => val,
                     None => {
-                        return Err(Fault::MissingInput(self.pc));
+                        // We need to pause operations to wait for additional input
+                        self.waiting_on_input = true;
+                        return Ok(());
                     }
                 };
 
@@ -361,11 +380,11 @@ impl Default for IntCodeComputer {
             pc: 0,
 
             input: Vec::new(),
-
             memory: [None; MEMORY_SIZE],
-            original_memory: [None; MEMORY_SIZE],
-
             output: Vec::new(),
+
+            waiting_on_input: false,
+            original_memory: [None; MEMORY_SIZE],
         }
     }
 }
