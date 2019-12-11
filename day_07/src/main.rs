@@ -19,6 +19,10 @@ pub fn amplifier_chain(program: &str, settings: &[isize]) -> Result<isize, Fault
     Ok(signal)
 }
 
+pub fn amplifier_feedback_chain(program: &str, settings: &[isize]) -> Result<isize, Fault> {
+    unimplemented!();
+}
+
 pub fn is_valid_setting(settings: &[isize]) -> bool {
     // Must have length of 5
     if settings.len() != 5 {
@@ -27,6 +31,22 @@ pub fn is_valid_setting(settings: &[isize]) -> bool {
 
     // Must contain each setting (and by proxy, contain it exactly once)
     for i in 0..5 {
+        if settings.iter().find(|s| i as isize == **s).is_none() {
+            return false;
+        }
+    }
+
+    true
+}
+
+pub fn is_valid_feedback_setting(settings: &[isize]) -> bool {
+    // Must have length of 5
+    if settings.len() != 5 {
+        return false;
+    }
+
+    // Must contain each setting (and by proxy, contain it exactly once)
+    for i in 5..10 {
         if settings.iter().find(|s| i as isize == **s).is_none() {
             return false;
         }
@@ -66,6 +86,37 @@ pub fn find_maximum_output(program: &str) -> Result<isize, Fault> {
     }
 }
 
+pub find_maximum_feedback_output(program: &str) -> Result<isize, Fault> {
+    let mut amplifier_settings: [isize; 5] = [5, 6, 7, 8, 9];
+    let mut max_value = 0;
+
+    loop {
+        // We only calculate and update the chain if the settings are valid
+        if is_valid_feedback_setting(&amplifier_settings) {
+            let new_value = amplifier_feedback_chain(&program, &amplifier_settings)?;
+
+            if new_value > max_value {
+                max_value = new_value;
+            }
+        }
+
+        for pos in 0..5 {
+            amplifier_settings[pos] += 1;
+
+            if amplifier_settings[pos] > 10 {
+                // We're at the maximum value for the last position, return whatever we have
+                if pos == 4 {
+                    return Ok(max_value);
+                }
+
+                amplifier_settings[pos] = 5;
+            } else {
+                break;
+            }
+        }
+    }
+}
+
 pub fn get_program() -> String {
     let mut in_dat_fh = File::open("./data/input.txt").unwrap();
     let mut in_dat = String::new();
@@ -76,6 +127,7 @@ pub fn get_program() -> String {
 
 fn main() {
     let prog = get_program();
+
     let max_value = match find_maximum_output(&prog) {
         Ok(val) => val,
         Err(err) => {
@@ -83,9 +135,16 @@ fn main() {
             std::process::exit(1);
         },
     };
-
-    // Note: failed answer: 126030768 (too high)
     println!("Maximum value for input program was: {}", max_value);
+
+    let max_feedback_value = match find_maximum_feedback_output(&prog) {
+        Ok(val) => val,
+        Err(err) => {
+            println!("There was an error running the program: {:?}", err);
+            std::process::exit(1);
+        },
+    };
+    println!("Maximum feedback value for input program was: {}", max_feedback_value);
 }
 
 #[cfg(test)]
