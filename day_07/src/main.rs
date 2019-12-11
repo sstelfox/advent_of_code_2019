@@ -20,18 +20,36 @@ pub fn amplifier_chain(program: &str, settings: &[isize]) -> Result<isize, Fault
 }
 
 pub fn amplifier_feedback_chain(program: &str, settings: &[isize]) -> Result<isize, Fault> {
-    let initial_inputs: [isize; 5] = [5, 6, 7, 8, 9];
-
-    let computers: Vec<IntCodeComputer> = initial_inputs
-        .into_iter()
-        .map(|ii| {
-            let mut icc = IntCodeComputer::from_str(&program);
-            icc.add_input(vec![ii]);
-            icc
+    let mut computers: Vec<IntCodeComputer> = settings
+        .iter()
+        .map(|init| {
+            let mut comp = IntCodeComputer::from_str(&program).unwrap();
+            comp.add_input(vec![*init]);
+            comp
         })
         .collect();
 
-    unimplemented!();
+    let last_computer_id = settings.len() - 1;
+    let mut transfer_data: isize = 0;
+    let mut current_comp = 0;
+
+    loop {
+        computers[current_comp].add_input(vec![transfer_data]);
+        computers[current_comp].run()?;
+        transfer_data = computers[current_comp].output().into_iter().nth(0).unwrap();
+
+        if current_comp == last_computer_id && computers[current_comp].is_halted() {
+            break;
+        } else {
+            if current_comp >= last_computer_id {
+                current_comp = 0;
+            } else {
+                current_comp += 1;
+            }
+        }
+    }
+
+    Ok(transfer_data)
 }
 
 pub fn is_valid_setting(settings: &[isize]) -> bool {
@@ -148,6 +166,7 @@ fn main() {
     };
     println!("Maximum value for input program was: {}", max_value);
 
+    // Got value 8320285 which was too low
     let max_feedback_value = match find_maximum_feedback_output(&prog) {
         Ok(val) => val,
         Err(err) => {
