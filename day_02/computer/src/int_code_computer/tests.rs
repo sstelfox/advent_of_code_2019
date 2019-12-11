@@ -50,7 +50,10 @@ fn test_memory_retrieval() -> FaultResult {
     assert_eq!(ic.mem_read(7)?, 45);
 
     assert_eq!(ic.mem_read(1), Err(Fault::MissingMemory(0, 1)));
-    assert_eq!(ic.mem_read((MEMORY_SIZE + 1).try_into().unwrap()), Err(Fault::MemoryExceeded));
+    assert_eq!(
+        ic.mem_read((MEMORY_SIZE + 1).try_into().unwrap()),
+        Err(Fault::MemoryExceeded)
+    );
 
     Ok(())
 }
@@ -64,7 +67,10 @@ fn test_memory_storage() -> FaultResult {
     ic.store(0, 100)?;
     assert_eq!(ic.mem_read(0)?, 100);
 
-    assert_eq!(ic.store((MEMORY_SIZE + 1).try_into().unwrap(), 6000), Err(Fault::MemoryExceeded));
+    assert_eq!(
+        ic.store((MEMORY_SIZE + 1).try_into().unwrap(), 6000),
+        Err(Fault::MemoryExceeded)
+    );
 
     Ok(())
 }

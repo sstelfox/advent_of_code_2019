@@ -1,5 +1,5 @@
-use std::str::FromStr;
 use std::convert::TryInto;
+use std::str::FromStr;
 
 /// The amount of RAM the IntCodeComputer has. I could change the implementation to allow for
 /// arbitrary sized inputs by using a Vec<_> instead, but this feels more appropriate for the task.
@@ -95,7 +95,7 @@ impl IntCodeComputer {
                         }
 
                         Ok(Operation::Input)
-                    },
+                    }
                     4 => Ok(Operation::Output(parameter_mode)),
                     5 => Ok(Operation::JumpIfTrue(parameter_mode)),
                     6 => Ok(Operation::JumpIfFalse(parameter_mode)),
@@ -107,10 +107,10 @@ impl IntCodeComputer {
                         }
 
                         Ok(Operation::Halt)
-                    },
+                    }
                     _ => Err(Fault::UnknownOperation(self.pc, op)),
                 }
-            },
+            }
             None => Err(Fault::UninitializedOperation(self.pc)),
         }
     }
@@ -176,7 +176,7 @@ impl IntCodeComputer {
                 // Note: This may also fail due to being oversized and wrapping... but that seems
                 // incredibly unlikely...
                 return Err(Fault::NegativeMemoryAddress(self.pc, address));
-            },
+            }
         };
 
         if safe_address >= MEMORY_SIZE {
@@ -211,16 +211,14 @@ impl IntCodeComputer {
     pub fn retrieve(&self, address: isize, read_mode: usize) -> Result<isize, Fault> {
         let raw_mem = self.mem_read(address)?;
         match read_mode {
-           // Position mode, we need to return the value at the parameter's address
-           0 => Ok(self.mem_read(raw_mem)?),
+            // Position mode, we need to return the value at the parameter's address
+            0 => Ok(self.mem_read(raw_mem)?),
 
-           // Immediate mode, return the value at the parameter's location
-           1 => Ok(raw_mem),
+            // Immediate mode, return the value at the parameter's location
+            1 => Ok(raw_mem),
 
-           // All other modes are invalid
-           _ => {
-               Err(Fault::ParameterModeInvalid(self.pc))
-           }
+            // All other modes are invalid
+            _ => Err(Fault::ParameterModeInvalid(self.pc)),
         }
     }
 
@@ -295,7 +293,7 @@ impl IntCodeComputer {
                         Ok(pc) => pc,
                         Err(_) => {
                             return Err(Fault::InvalidProgramCount(self.pc, new_pc));
-                        },
+                        }
                     };
 
                     // Ensure we skip the op advancement when we modify the PC
@@ -311,7 +309,7 @@ impl IntCodeComputer {
                         Ok(pc) => pc,
                         Err(_) => {
                             return Err(Fault::InvalidProgramCount(self.pc, new_pc));
-                        },
+                        }
                     };
 
                     // Ensure we skip the op advancement when we modify the PC
@@ -359,7 +357,7 @@ impl IntCodeComputer {
                 // Note: This may also fail due to being oversized and wrapping... but that seems
                 // incredibly unlikely...
                 return Err(Fault::NegativeMemoryAddress(self.pc, address));
-            },
+            }
         };
 
         if safe_address >= MEMORY_SIZE {
