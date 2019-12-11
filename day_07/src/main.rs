@@ -20,6 +20,17 @@ pub fn amplifier_chain(program: &str, settings: &[isize]) -> Result<isize, Fault
 }
 
 pub fn amplifier_feedback_chain(program: &str, settings: &[isize]) -> Result<isize, Fault> {
+    let initial_inputs: [isize; 5] = [5, 6, 7, 8, 9];
+
+    let computers: Vec<IntCodeComputer> = initial_inputs
+        .into_iter()
+        .map(|ii| {
+            let mut icc = IntCodeComputer::from_str(&program);
+            icc.add_input(vec![ii]);
+            icc
+        })
+        .collect();
+
     unimplemented!();
 }
 
@@ -133,7 +144,7 @@ fn main() {
         Err(err) => {
             println!("There was an error running the program: {:?}", err);
             std::process::exit(1);
-        },
+        }
     };
     println!("Maximum value for input program was: {}", max_value);
 
@@ -142,9 +153,12 @@ fn main() {
         Err(err) => {
             println!("There was an error running the program: {:?}", err);
             std::process::exit(1);
-        },
+        }
     };
-    println!("Maximum feedback value for input program was: {}", max_feedback_value);
+    println!(
+        "Maximum feedback value for input program was: {}",
+        max_feedback_value
+    );
 }
 
 #[cfg(test)]
@@ -156,7 +170,7 @@ mod tests {
     #[test]
     fn test_sample_program_chains1() -> FaultResult {
         let sample_prog = "3,15,3,16,1002,16,10,16,1,16,15,15,4,15,99,0,0";
-        let output = amplifier_chain(&sample_prog, &vec![4,3,2,1,0])?;
+        let output = amplifier_chain(&sample_prog, &vec![4, 3, 2, 1, 0])?;
         assert_eq!(output, 43210);
 
         Ok(())
@@ -164,8 +178,9 @@ mod tests {
 
     #[test]
     fn test_sample_program_chains2() -> FaultResult {
-        let sample_prog = "3,23,3,24,1002,24,10,24,1002,23,-1,23,101,5,23,23,1,24,23,23,4,23,99,0,0";
-        let output = amplifier_chain(&sample_prog, &vec![0,1,2,3,4])?;
+        let sample_prog =
+            "3,23,3,24,1002,24,10,24,1002,23,-1,23,101,5,23,23,1,24,23,23,4,23,99,0,0";
+        let output = amplifier_chain(&sample_prog, &vec![0, 1, 2, 3, 4])?;
         assert_eq!(output, 54321);
 
         Ok(())
@@ -174,7 +189,7 @@ mod tests {
     #[test]
     fn test_sample_program_chains3() -> FaultResult {
         let sample_prog = "3,31,3,32,1002,32,10,32,1001,31,-2,31,1007,31,0,33,1002,33,7,33,1,33,31,31,1,32,31,31,4,31,99,0,0,0";
-        let output = amplifier_chain(&sample_prog, &vec![1,0,4,3,2])?;
+        let output = amplifier_chain(&sample_prog, &vec![1, 0, 4, 3, 2])?;
         assert_eq!(output, 65210);
 
         Ok(())
@@ -191,7 +206,8 @@ mod tests {
 
     #[test]
     fn test_find_maximum_output2() -> FaultResult {
-        let sample_prog = "3,23,3,24,1002,24,10,24,1002,23,-1,23,101,5,23,23,1,24,23,23,4,23,99,0,0";
+        let sample_prog =
+            "3,23,3,24,1002,24,10,24,1002,23,-1,23,101,5,23,23,1,24,23,23,4,23,99,0,0";
         let output = find_maximum_output(&sample_prog)?;
         assert_eq!(output, 54321);
 
