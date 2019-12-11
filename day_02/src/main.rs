@@ -19,7 +19,7 @@ fn main() {
         println!("Program crashed with error: {:?}", err);
     };
 
-    println!("Answer to step 1 is: {}", icc.retrieve(0).unwrap());
+    println!("Answer to step 1 is: {}", icc.mem_read(0).unwrap());
     println!("Brute force searching the answer to step 2...");
 
     // Alright so there are two possibilities for how I could go about finding the answer to step
@@ -38,7 +38,7 @@ fn main() {
 
             icc.run().unwrap();
 
-            if icc.retrieve(0).unwrap() == 19_690_720 {
+            if icc.mem_read(0).unwrap() == 19_690_720 {
                 println!("Found a valid answer: {:0>2}{:0>2}", noun, verb);
             }
         }
