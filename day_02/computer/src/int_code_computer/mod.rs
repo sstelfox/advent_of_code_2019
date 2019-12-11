@@ -215,11 +215,13 @@ impl IntCodeComputer {
         }
     }
 
-    pub fn set_input(&mut self, input: Vec<isize>) {
+    pub fn add_input(&mut self, input: Vec<isize>) {
         // Rust doesn't have a shift/unshift method so we always will be working from the back of
         // the list. To get the correct order we need to reverse it when we initialize the
         // computer.
-        let rev_input: Vec<isize> = input.into_iter().rev().collect();
+        let mut rev_input: Vec<isize> = input.into_iter().rev().collect();
+        rev_input.append(&mut self.input);
+
         self.input = rev_input;
     }
 

@@ -204,7 +204,7 @@ fn test_input_step() -> FaultResult {
 
     let sample_prog = "3,3,99";
     let mut ic = IntCodeComputer::from_str(sample_prog)?;
-    ic.set_input(vec![-832]);
+    ic.add_input(vec![-832]);
     assert_eq!(ic.memory_str(), sample_prog);
 
     assert_eq!(ic.current_op()?, Operation::Input);
@@ -416,7 +416,7 @@ fn test_input_output_program() -> FaultResult {
 
     let sample_prog = "3,0,4,0,99";
     let mut ic = IntCodeComputer::from_str(sample_prog)?;
-    ic.set_input(vec![673]);
+    ic.add_input(vec![673]);
 
     ic.run()?;
     assert_eq!(ic.output(), vec![673]);
@@ -444,12 +444,12 @@ fn test_jump_instruction_samples1() -> FaultResult {
     let sample_prog = "3,9,8,9,10,9,4,9,99,-1,8";
     let mut ic = IntCodeComputer::from_str(sample_prog)?;
 
-    ic.set_input(vec![4]);
+    ic.add_input(vec![4]);
     ic.run()?;
     assert_eq!(ic.output(), vec![0]);
 
     ic.reset();
-    ic.set_input(vec![8]);
+    ic.add_input(vec![8]);
     ic.run()?;
     assert_eq!(ic.output(), vec![1]);
 
@@ -463,12 +463,12 @@ fn test_jump_instruction_samples2() -> FaultResult {
     let sample_prog = "3,3,1108,-1,8,3,4,3,99";
     let mut ic = IntCodeComputer::from_str(sample_prog)?;
 
-    ic.set_input(vec![-10]);
+    ic.add_input(vec![-10]);
     ic.run()?;
     assert_eq!(ic.output(), vec![0]);
 
     ic.reset();
-    ic.set_input(vec![8]);
+    ic.add_input(vec![8]);
     ic.run()?;
     assert_eq!(ic.output(), vec![1]);
 
@@ -482,12 +482,12 @@ fn test_jump_instruction_samples3() -> FaultResult {
     let sample_prog = "3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9";
     let mut ic = IntCodeComputer::from_str(sample_prog)?;
 
-    ic.set_input(vec![0]);
+    ic.add_input(vec![0]);
     ic.run()?;
     assert_eq!(ic.output(), vec![0]);
 
     ic.reset();
-    ic.set_input(vec![129]);
+    ic.add_input(vec![129]);
     ic.run()?;
     assert_eq!(ic.output(), vec![1]);
 
@@ -501,12 +501,12 @@ fn test_jump_instruction_samples4() -> FaultResult {
     let sample_prog = "3,3,1105,-1,9,1101,0,0,12,4,12,99,1";
     let mut ic = IntCodeComputer::from_str(sample_prog)?;
 
-    ic.set_input(vec![0]);
+    ic.add_input(vec![0]);
     ic.run()?;
     assert_eq!(ic.output(), vec![0]);
 
     ic.reset();
-    ic.set_input(vec![129]);
+    ic.add_input(vec![129]);
     ic.run()?;
     assert_eq!(ic.output(), vec![1]);
 
@@ -520,17 +520,17 @@ fn test_jump_instruction_samples5() -> FaultResult {
     let sample_prog = "3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99";
     let mut ic = IntCodeComputer::from_str(sample_prog)?;
 
-    ic.set_input(vec![5]);
+    ic.add_input(vec![5]);
     ic.run()?;
     assert_eq!(ic.output(), vec![999]);
 
     ic.reset();
-    ic.set_input(vec![8]);
+    ic.add_input(vec![8]);
     ic.run()?;
     assert_eq!(ic.output(), vec![1000]);
 
     ic.reset();
-    ic.set_input(vec![92]);
+    ic.add_input(vec![92]);
     ic.run()?;
     assert_eq!(ic.output(), vec![1001]);
 
