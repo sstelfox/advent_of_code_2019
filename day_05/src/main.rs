@@ -10,7 +10,7 @@ fn main() {
 
     in_dat_fh.read_to_string(&mut in_dat).unwrap();
     let mut icc = IntCodeComputer::from_str(&in_dat).unwrap();
-    icc.set_input(vec![1]);
+    icc.add_input(vec![1]);
 
     if let Err(err) = icc.run() {
         println!("Running the program encountered and error: {:?}", err);
@@ -20,7 +20,7 @@ fn main() {
     println!("Output of program part 1 was: {:?}", icc.output());
 
     icc.reset();
-    icc.set_input(vec![5]);
+    icc.add_input(vec![5]);
 
     if let Err(err) = icc.run() {
         println!("Running the program encountered and error: {:?}", err);
